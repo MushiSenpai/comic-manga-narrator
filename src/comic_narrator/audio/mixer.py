@@ -14,6 +14,7 @@ def mix_audio(
     ambient_file: Path | None,
     output_path: Path,
     inter_panel_pause: float = 0.5,
+    panel_ambients: dict[int, list[Path]] | None = None,
 ) -> Timing:
     """Mix per-event WAV files into a single narration.wav. Returns timing.
 
@@ -77,9 +78,35 @@ def mix_audio(
             event_ids=panel_event_ids,
         ))
 
-    # Mix ambient bed underneath (if provided)
-    if ambient_file and Path(ambient_file).exists():
-        ambient = AudioSegment.from_file(str(ambient_file))
+    # Ambient beds underneath. Per-panel beds (each panel gets its own
+    # soundscape derived from what's visible in that panel's art) take
+    # precedence; the page-wide bed is the fallback for panels without
+    # their own cues, or the legacy whole-timeline behavior when no
+    # per-panel beds exist at all.
+    fallback_bed = (
+        Path(ambient_file) if ambient_file and Path(ambient_file).exists() else None
+    )
+    if panel_ambients:
+        for entry in timing_entries:
+            beds = panel_ambients.get(entry.panel_id) or (
+                [fallback_bed] if fallback_bed else []
+            )
+            span_ms = int((entry.end_sec - entry.start_sec) * 1000)
+            if span_ms <= 600:
+                continue
+            for bed_path in beds:
+                if not bed_path or not Path(bed_path).exists():
+                    continue
+                bed = AudioSegment.from_file(str(bed_path))
+                bed = bed + MIX_LEVELS.get("ambient", -18.0)
+                if len(bed) < span_ms:
+                    bed = bed * ((span_ms // max(len(bed), 1)) + 1)
+                bed = bed[:span_ms].fade_in(300).fade_out(300)
+                timeline = timeline.overlay(
+                    bed, position=int(entry.start_sec * 1000)
+                )
+    elif fallback_bed:
+        ambient = AudioSegment.from_file(str(fallback_bed))
         ambient = ambient + MIX_LEVELS.get("ambient", -18.0)
         # Loop ambient to match timeline length
         if len(ambient) < len(timeline):

@@ -263,3 +263,17 @@ voice_id → profile name as designed. Alternatives noted: VCTK (CC BY 4.0,
   the "110 speakers" set is VCTK/CC-BY/English; multilingual CC0 = Common
   Voice) + `scripts/curate-cv-voices.py` to turn a Common Voice dump into
   cloned gateway profiles.
+
+## Session 3 addendum — forensic soundscape (Track E)
+
+User insight captured as a design principle: ambient sound must come from
+what is *visible* (birds near a harbor → gull cries), not just drawn text —
+that's why a forensic-grade vision pass is in the loop at all. Pass 2 was
+already deriving cues from the art; the flattening happened downstream.
+Fixed: per-panel layered ambient beds (up to 2, 300ms fades, panel-spanning
+overlays) replace the single page-wide bed; Freesound ambient queries now
+target loopable 10-120s recordings (`"<cue> ambience"`, separate cache
+namespace) instead of 0.5-10s SFX hits; the Pass 2 prompt demands a forensic
+sound-source inventory. Verified on the harbor page: 4 distinct beds
+downloaded and mixed. Remaining: visually-implied one-shot SFX (E3),
+dialogue ducking (E4), curated sfx_map pins (E5).

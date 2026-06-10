@@ -66,17 +66,30 @@ def render_audio(
                         "pause_override": e.pause_override,
                     })
 
-    # Resolve ambient bed
+    # Resolve ambient beds PER PANEL. The cues come from Pass 2 reading the
+    # artwork itself (visible birds → gull cries, ship on water → waves) —
+    # not from drawn sound text. This is the forensic-soundscape idea: the
+    # harbor panel gets seagulls, the deck panel gets wind and creaking,
+    # instead of one flattened bed across the whole page.
     ambient_file = None
+    panel_ambients: dict[int, list[Path]] = {}
     if freesound_api_key:
         sfx_client = FreesoundClient(freesound_api_key, sfx_cache_dir, sfx_map_path)
-        # Collect all ambient cues from script events
-        all_cues: list[str] = []
         for e in script.events:
-            if e.kind.value == "ambient":
-                all_cues.append(e.text)
+            if e.kind.value == "ambient" and e.text:
+                cues = [c.strip() for c in e.text.split(",") if c.strip()]
+                for cue in cues[:2]:  # layer up to 2 beds per panel
+                    bed = sfx_client.resolve_ambient_bed(cue)
+                    if bed:
+                        panel_ambients.setdefault(e.panel_id, []).append(bed)
+        # Page-wide fallback bed for panels without cues of their own
+        all_cues = [
+            c.strip()
+            for e in script.events if e.kind.value == "ambient" and e.text
+            for c in e.text.split(",") if c.strip()
+        ]
         if all_cues:
-            ambient_file = sfx_client.resolve_ambient(all_cues)
+            ambient_file = sfx_client.resolve_ambient(all_cues[:3])
 
     # Panels with script events but no audio (wordless panels / splash pages)
     # still need screen time — bed them with silence so the mixer emits a
@@ -110,7 +123,10 @@ def render_audio(
 
     # Mix
     narration_path = output_dir / "narration.wav"
-    timing = mix_audio(event_files, ambient_file, narration_path)
+    timing = mix_audio(
+        event_files, ambient_file, narration_path,
+        panel_ambients=panel_ambients,
+    )
 
     # Write timing.json
     import json

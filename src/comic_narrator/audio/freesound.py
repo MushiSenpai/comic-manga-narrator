@@ -87,15 +87,20 @@ class FreesoundClient:
             pass
         return None
 
-    def _search_and_download(self, keyword: str) -> Optional[Path]:
+    def _search_and_download(
+        self,
+        keyword: str,
+        duration_filter: str = "duration:[0.5 TO 10.0]",
+        cache_keyword: Optional[str] = None,
+    ) -> Optional[Path]:
         """Text search Freesound and download top result."""
-        cached = self._cached_path(keyword)
+        cached = self._cached_path(cache_keyword or keyword)
         try:
             r = requests.get(
                 f"{self.base_url}/search/text/",
                 params={
                     "query": keyword,
-                    "filter": "duration:[0.5 TO 10.0]",
+                    "filter": duration_filter,
                     "sort": "rating_desc",
                     "page_size": 3,
                     "fields": "id,name,previews",
@@ -120,10 +125,28 @@ class FreesoundClient:
             pass
         return None
 
+    def resolve_ambient_bed(self, cue: str) -> Optional[Path]:
+        """Resolve one ambient cue to a loopable background bed.
+
+        Distinct from resolve_sfx: ambient wants long, loopable recordings
+        ("seagulls" should land on a harbor soundscape, not a single squawk),
+        so the search appends "ambience" and filters for 10-120s durations.
+        """
+        keyword = cue.lower().strip()
+        cache_keyword = f"amb:{keyword}"
+        cached = self._cached_path(cache_keyword)
+        if cached.exists():
+            return cached
+        return self._search_and_download(
+            f"{keyword} ambience",
+            duration_filter="duration:[10.0 TO 120.0]",
+            cache_keyword=cache_keyword,
+        )
+
     def resolve_ambient(self, cues: list[str]) -> Optional[Path]:
-        """Try each ambient cue keyword until one resolves."""
+        """Try each ambient cue until one resolves to a bed."""
         for cue in cues:
-            path = self.resolve_sfx(cue)
+            path = self.resolve_ambient_bed(cue)
             if path:
                 return path
         return None

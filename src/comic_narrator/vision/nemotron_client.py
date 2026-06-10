@@ -115,7 +115,7 @@ Output valid JSON with these rules:
   - "tone": delivery style ("shouting","whispering","dismissive","nervous","confident","neutral")
 - "captions" (array): narrator text boxes (not spoken by characters)
 - "sfx_text" (array): sound effect text art (e.g. "FWAP", "BOOM", "CRASH")
-- "ambient_cues" (array): keywords for background ambient sound (e.g. "wind", "waves", "seagulls", "rain", "crowd")
+- "ambient_cues" (array): 2-5 keywords for the background soundscape implied by what is VISIBLE in the art — inventory the sound sources forensically even when nothing is written: birds in the sky → "seagulls", ship on water → "waves" and "creaking ship", flags or sails → "flapping cloth", village street → "distant chatter", forest → "rustling leaves", rain drawn → "rain"
 - "pacing_hint": "dramatic_reveal", "quick_transition", "action_peak", or "" for normal pace
 
 Output ONLY the JSON object, no markdown, no explanation."""

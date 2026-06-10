@@ -68,6 +68,20 @@ English, or both).
 | C4 | **Translated subtitle track** | During Phase 2, ask Nemotron for a translation per event (`text_translated`); emit a second `.srt`. T1-sovereign: translation stays on local Nemotron. | ja audio + en subtitles on one render. |
 | C5 | **Vertical-text OCR validation** | Japanese manga uses vertical RTL text in bubbles; validate Pass 2 on raw (untranslated) scans, fix prompts if reading order inside bubbles scrambles. | 3 raw Japanese pages transcribed correctly. |
 
+## Track E — Forensic soundscape (the "seagulls you can see but not read" principle)
+
+The point of using Nemotron forensically: ambient sound should come from what
+is *visible* in the art, not just from drawn sound text. A harbor panel with
+birds should sound like a harbor with gulls.
+
+| # | Item | Status |
+|---|---|---|
+| E1 | Visual ambient cues | ✅ Pass 2 derives cues from artwork (verified: harbor page → wind/birds/sea/waves/seagulls with zero ambient text in bubbles); prompt now demands a forensic sound-source inventory (2-5 cues per panel) |
+| E2 | **Per-panel ambient beds** | ✅ 2026-06-11: each panel gets up to 2 layered beds over its own timeline span (300ms fades), replacing the single flattened page bed; Freesound ambient searches now target loopable 10-120s recordings, not SFX hits |
+| E3 | Visually-implied SFX events | ⬜ a drawn flapping flag with no "FWAP" text should still emit a one-shot SFX; needs a `visual_sfx[]` field in Pass 2 + event plumbing |
+| E4 | Dialogue ducking | ⬜ lower ambient a further 4-6dB under dialogue/caption spans (pydub gain automation) so beds never fight the voices |
+| E5 | Curated `sfx_map.yaml` growth | ⬜ pin known-good Freesound IDs for the common cues (waves, wind, crowd, rain, seagulls) — text search top-hit is a lottery |
+
 ## Track D — Ops / scale
 
 | # | Item | Notes |
