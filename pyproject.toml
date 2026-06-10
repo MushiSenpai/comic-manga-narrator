@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comic-narrator"
+version = "0.1.0"
+description = "AI pipeline: comic/manga pages → dramatized narrated MP4 videos"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "mushi"}]
+
+dependencies = [
+    "opencv-python-headless>=4.9.0",
+    "pillow>=10.0.0",
+    "requests>=2.31.0",
+    "pydub>=0.25.1",
+    "ffmpeg-python>=0.2.0",
+    "openai>=1.30.0",
+    "pydantic>=2.7.0",
+    "pyyaml>=6.0",
+    "numpy>=1.26.0",
+    "tqdm>=4.66.0",
+    "rich>=13.0.0",
+    "PyMuPDF>=1.24.0",
+    "json-repair>=0.30.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.14.0",
+]
+
+[project.scripts]
+comic-narrator = "comic_narrator.narrate:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

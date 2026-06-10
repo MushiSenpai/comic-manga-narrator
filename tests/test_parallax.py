@@ -1,0 +1,166 @@
+"""Tests for the 2.5D parallax overlay: alpha encoding, Ken Burns anchoring,
+panel→page bbox mapping, and compositing through compose_video."""
+
+import json
+import subprocess
+import wave
+from pathlib import Path
+
+import numpy as np
+import pytest
+from PIL import Image
+
+from comic_narrator.video.ken_burns import ken_burns_frame
+from comic_narrator.video.parallax import render_parallax_overlay, _ken_burns_state
+from comic_narrator.video.compose import compose_video
+
+TEST_PAGE = Path(__file__).parent / "fixtures" / "test_page.jpg"
+DUR = 1.5
+FPS = 24
+# Mid-page bbox in page coords on the 1200x1800 fixture
+BBOX = (300, 500, 400, 500)
+
+
+def _silent_wav(path: Path, seconds: float = 3.0, rate: int = 44100) -> Path:
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(b"\x00\x00" * int(seconds * rate))
+    return path
+
+
+def _probe_video(path: Path) -> dict:
+    out = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-print_format", "json",
+         "-show_streams", "-count_frames", str(path)],
+        check=True, capture_output=True, text=True,
+    )
+    return json.loads(out.stdout)
+
+
+def _grab_luma(video: Path, t: float, out_dir: Path) -> np.ndarray:
+    png = out_dir / f"{video.stem}_{t}.png"
+    subprocess.run(
+        ["ffmpeg", "-y", "-ss", str(t), "-i", str(video), "-frames:v", "1", str(png)],
+        check=True, capture_output=True,
+    )
+    return np.asarray(Image.open(png).convert("L"), dtype=np.float64)
+
+
+def test_no_bbox_returns_none(tmp_path):
+    out = render_parallax_overlay(TEST_PAGE, None, tmp_path / "p.mov", DUR)
+    assert out is None
+
+
+def test_degenerate_bbox_returns_none(tmp_path):
+    # Entirely outside the 1200x1800 page
+    out = render_parallax_overlay(TEST_PAGE, (5000, 5000, 100, 100), tmp_path / "p.mov", DUR)
+    assert out is None
+
+
+def test_overlay_is_prores_4444_with_alpha(tmp_path):
+    out = render_parallax_overlay(TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS)
+    assert out is not None and out.exists()
+    stream = _probe_video(out)["streams"][0]
+    assert stream["codec_name"] == "prores"
+    # ProRes 4444 decodes as 12-bit; what matters is the alpha plane
+    assert stream["pix_fmt"].startswith("yuva444p"), "overlay must carry an alpha plane"
+    assert int(stream["nb_read_frames"]) == round(DUR * FPS)
+
+
+def test_overlay_anchored_to_ken_burns(tmp_path):
+    """With no pop (scale_up=1, shift=0) the cutout must land exactly on its
+    own background pixels: any systematic shift means the zoompan replication
+    in _ken_burns_state has drifted from ken_burns.py."""
+    kb = tmp_path / "kb.mp4"
+    ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS)
+    plx = render_parallax_overlay(
+        TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS, scale_up=1.0, shift_px=0
+    )
+    wav = _silent_wav(tmp_path / "s.wav")
+    out_with = tmp_path / "with.mp4"
+    out_without = tmp_path / "without.mp4"
+    compose_video(kb, plx, wav, out_with)
+    compose_video(kb, None, wav, out_without)
+
+    t = DUR / 2
+    n = round(t * FPS)
+    iw, ih = Image.open(TEST_PAGE).size
+    crop_w, crop_h, kx, ky = _ken_burns_state(n, FPS, iw, ih, 1.05, 0.05)
+    sx, sy = 1920 / crop_w, 1080 / crop_h
+    bx, by, bw, bh = BBOX
+    rx0, ry0 = int((bx - kx) * sx), int((by - ky) * sy)
+    rx1, ry1 = int((bx + bw - kx) * sx), int((by + bh - ky) * sy)
+
+    a = _grab_luma(out_with, t, tmp_path)
+    b = _grab_luma(out_without, t, tmp_path)
+    pad = 20  # stay clear of the feathered edge
+    region_a = a[ry0 + pad:ry1 - pad, rx0 + pad:rx1 - pad]
+
+    diffs = {}
+    for dy in range(-2, 3):
+        for dx in range(-2, 3):
+            region_b = b[ry0 + pad + dy:ry1 - pad + dy, rx0 + pad + dx:rx1 - pad + dx]
+            diffs[(dx, dy)] = np.abs(region_a - region_b).mean()
+    best = min(diffs, key=diffs.get)
+    assert best == (0, 0), f"overlay misaligned: best shift {best}, diffs {diffs}"
+    # Residual is resampling-kernel + codec noise only
+    assert diffs[(0, 0)] < 15, f"overlay region diff too high: {diffs[(0, 0)]:.2f}"
+
+
+def test_compose_with_overlay_changes_output(tmp_path):
+    """With the real pop params the speaker region must visibly differ from
+    the plain Ken Burns render — proves the alpha intermediate decodes and
+    composites through compose_video's overlay filter."""
+    kb = tmp_path / "kb.mp4"
+    ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS)
+    plx = render_parallax_overlay(
+        TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS, scale_up=1.08, shift_px=12
+    )
+    wav = _silent_wav(tmp_path / "s.wav")
+    out_with = tmp_path / "with.mp4"
+    out_without = tmp_path / "without.mp4"
+    compose_video(kb, plx, wav, out_with)
+    compose_video(kb, None, wav, out_without)
+
+    a = _grab_luma(out_with, DUR / 2, tmp_path)
+    b = _grab_luma(out_without, DUR / 2, tmp_path)
+    assert np.abs(a - b).mean() > 0.5, "overlay had no effect on composed video"
+
+    streams = _probe_video(out_with)["streams"]
+    assert {s["codec_type"] for s in streams} == {"video", "audio"}
+
+
+def test_render_video_end_to_end(tmp_path):
+    """Full Phase 4 path with a panel-relative speaker bbox: exercises the
+    panel→page mapping against panels_layout in render_video.py."""
+    from comic_narrator.render_video import render_video
+    from comic_narrator.schemas import (
+        BBox, Character, PageAnalysis, PagePanels, Panel, PanelAnalysis,
+        Timing, TimingEntry,
+    )
+
+    page_analysis = PageAnalysis(
+        layout="manga",
+        panels_layout=PagePanels(layout="manga", panels=[
+            Panel(id=1, bbox=BBox(x=100, y=200, w=1000, h=800), order_index=0),
+        ]),
+        panels_analysis=[
+            PanelAnalysis(panel_id=1, characters=[
+                # Panel-relative: maps to page-space (400, 500, 300, 400)
+                Character(label="hero", is_speaking=True, is_visible=True,
+                          bbox=BBox(x=300, y=300, w=300, h=400)),
+            ]),
+        ],
+    )
+    timing = Timing(entries=[TimingEntry(panel_id=1, start_sec=0.0, end_sec=DUR)],
+                    total_duration_sec=DUR)
+    wav = _silent_wav(tmp_path / "narration.wav")
+    out = tmp_path / "page.mp4"
+    result = render_video(TEST_PAGE, page_analysis, timing, wav, out)
+    assert result == out and out.exists()
+    streams = _probe_video(out)["streams"]
+    assert {s["codec_type"] for s in streams} == {"video", "audio"}
+    vid = next(s for s in streams if s["codec_type"] == "video")
+    assert int(vid["nb_read_frames"]) >= round(DUR * FPS) - 1

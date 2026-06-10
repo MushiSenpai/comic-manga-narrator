@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Pipeline outputs & intermediates
+*.mp4
+*.mov
+*.wav
+page.json
+script.json
+cast.json
+timing.json
+concat_list.txt
+
+# Keep test fixtures (images only)
+!tests/fixtures/*.jpg
+!tests/fixtures/*.png
+
+# Secrets — Freesound key lives in /data/ai/06-configs/comic-narrator/
+*.env
