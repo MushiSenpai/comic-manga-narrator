@@ -50,6 +50,35 @@ def _coerce_bbox(values, image_path: Optional[Path] = None) -> Optional[BBox]:
     return BBox(x=x, y=y, w=w, h=h)
 
 
+def _normalize_keys(data: dict) -> dict:
+    """Strip a literal trailing "[]" from keys.
+
+    Nemotron sometimes echoes the prompt's array notation as the actual JSON
+    key ("dialogues[]" instead of "dialogues"), which silently empties every
+    field the consumers .get() by plain name.
+    """
+    if not isinstance(data, dict):
+        return data
+    return {
+        (k[:-2] if isinstance(k, str) and k.endswith("[]") else k): v
+        for k, v in data.items()
+    }
+
+
+def _str_items(items) -> list[str]:
+    """Coerce a model-emitted list to strings ({"text": ...} dicts happen)."""
+    out: list[str] = []
+    for it in items or []:
+        if isinstance(it, str):
+            out.append(it)
+        elif isinstance(it, dict):
+            for key in ("text", "caption", "value"):
+                if key in it:
+                    out.append(str(it[key]))
+                    break
+    return out
+
+
 # ── Prompt Templates ────────────────────────────────────────────────────
 
 PASS1_SYSTEM = """You are a comic panel layout detector. Given a full comic/manga page image, output valid JSON with the layout direction and panel bounding boxes.
@@ -71,7 +100,7 @@ PASS2_SYSTEM = """You are a comic/manga analysis engine. Given a cropped panel i
 
 Output valid JSON with these rules:
 - "scene_description": 1-2 sentences describing the setting, time, weather, atmosphere.
-- "characters[]": every visible character. For each:
+- "characters" (array): every visible character. For each:
   - "label": a short unique label (e.g. "pirate_A", "luffy")
   - "expression": what their face shows ("angry", "smiling", "shocked", ...)
   - "dominant_emotion": the primary emotion ("rage", "joy", "fear", "surprise", "sadness", "neutral")
@@ -80,13 +109,13 @@ Output valid JSON with these rules:
   - "is_speaking": true if this character has dialogue in this panel
   - "is_visible": true if the character appears in the panel art, false if off-panel speaker
   - "bbox": [x, y, w, h] of the character's face/head in the panel (for parallax), null if not visible
-- "dialogues[]": each speech bubble. For each:
+- "dialogues" (array): each speech bubble. For each:
   - "speaker": must match a character "label"
   - "text": the exact dialogue text
   - "tone": delivery style ("shouting","whispering","dismissive","nervous","confident","neutral")
-- "captions[]": narrator text boxes (not spoken by characters)
-- "sfx_text[]": sound effect text art (e.g. "FWAP", "BOOM", "CRASH")
-- "ambient_cues[]": keywords for background ambient sound (e.g. "wind", "waves", "seagulls", "rain", "crowd")
+- "captions" (array): narrator text boxes (not spoken by characters)
+- "sfx_text" (array): sound effect text art (e.g. "FWAP", "BOOM", "CRASH")
+- "ambient_cues" (array): keywords for background ambient sound (e.g. "wind", "waves", "seagulls", "rain", "crowd")
 - "pacing_hint": "dramatic_reveal", "quick_transition", "action_peak", or "" for normal pace
 
 Output ONLY the JSON object, no markdown, no explanation."""
@@ -174,7 +203,7 @@ class NemotronClient:
         return response.choices[0].message.content or ""
 
     def _parse_json(self, raw: str) -> dict:
-        """Robust JSON parsing with repair fallback."""
+        """Robust JSON parsing with repair fallback. Normalizes "key[]" keys."""
         # Strip markdown fences if present
         text = raw.strip()
         if text.startswith("```"):
@@ -183,10 +212,11 @@ class NemotronClient:
                 text = text[:-3]
             text = text.strip()
         try:
-            return json.loads(text)
+            data = json.loads(text)
         except json.JSONDecodeError:
             # Try json_repair for malformed JSON
-            return json_repair.loads(text)
+            data = json_repair.loads(text)
+        return _normalize_keys(data)
 
     # ── Pass 1: Panel Detection ─────────────────────────────────────
 
@@ -255,9 +285,9 @@ class NemotronClient:
             scene_description=data.get("scene_description", ""),
             characters=characters,
             dialogues=dialogues,
-            captions=data.get("captions", []),
-            sfx_text=data.get("sfx_text", []),
-            ambient_cues=data.get("ambient_cues", []),
+            captions=_str_items(data.get("captions")),
+            sfx_text=_str_items(data.get("sfx_text")),
+            ambient_cues=_str_items(data.get("ambient_cues")),
             pacing_hint=data.get("pacing_hint", ""),
         )
 

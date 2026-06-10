@@ -1,0 +1,194 @@
+"""Phase 7 — Book scale: PDF → per-page narrated videos → chapter MP4s.
+
+Resumable by design: every page gets its own work directory holding the
+intermediates (page.jpg, page.json, script.json, narration.wav, page.mp4).
+A re-run skips any artifact that already exists, so a book interrupted at
+page 40 resumes there — and the forensic↔audio VRAM handoff can be done
+in two passes over the whole book (vision pass writes page/script JSONs,
+audio pass consumes them) just like the single-page resume flags.
+"""
+
+from __future__ import annotations
+
+import shutil
+from pathlib import Path
+
+from comic_narrator.config import PAGE_DPI
+
+
+def split_pdf(pdf_path: Path, pages_dir: Path, dpi: int = PAGE_DPI) -> list[Path]:
+    """Render each PDF page to pages_dir/page_NNNN.jpg. Skips existing files."""
+    import fitz  # PyMuPDF
+
+    pages_dir.mkdir(parents=True, exist_ok=True)
+    out_paths: list[Path] = []
+
+    with fitz.open(pdf_path) as doc:
+        for i, page in enumerate(doc):
+            out = pages_dir / f"page_{i + 1:04d}.jpg"
+            if not out.exists():
+                pix = page.get_pixmap(dpi=dpi)
+                pix.save(str(out), jpg_quality=92)
+            out_paths.append(out)
+
+    return out_paths
+
+
+def group_chapters(n_pages: int, chapter_pages: list[int] | None) -> list[list[int]]:
+    """Group 1-based page numbers into chapters.
+
+    chapter_pages lists the first page of each chapter AFTER the first
+    (e.g. [10, 25] → ch1: 1-9, ch2: 10-24, ch3: 25-end). None or empty →
+    one chapter with every page.
+    """
+    pages = list(range(1, n_pages + 1))
+    if not chapter_pages:
+        return [pages]
+
+    starts = sorted(set(p for p in chapter_pages if 1 < p <= n_pages))
+    boundaries = [1] + starts + [n_pages + 1]
+    return [
+        list(range(boundaries[i], boundaries[i + 1]))
+        for i in range(len(boundaries) - 1)
+        if boundaries[i] < boundaries[i + 1]
+    ]
+
+
+def narrate_page_resumable(
+    page_image: Path,
+    work_dir: Path,
+    layout: str,
+    voice_bank_dir: Path,
+    narrator_voice_id: str,
+    freesound_api_key: str = "",
+    vision_only: bool = False,
+) -> Path | None:
+    """Run phases 1-4 for one page, skipping any phase whose output exists.
+
+    vision_only stops after script.json (Phases 1-2) — the Nemotron pass of
+    the two-pass VRAM flow; a later run with the audio stack up picks up the
+    JSONs and renders. Returns the page video path, or None in vision_only.
+    """
+    import json
+
+    from comic_narrator.parse_page import parse_page
+    from comic_narrator.build_script import build_script
+    from comic_narrator.render_audio import render_audio
+    from comic_narrator.render_video import render_video
+    from comic_narrator.schemas import PageAnalysis, Script
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    page_json = work_dir / "page.json"
+    script_json = work_dir / "script.json"
+    cast_json = work_dir / "cast.json"
+    narration_wav = work_dir / "narration.wav"
+    page_mp4 = work_dir / "page.mp4"
+
+    if page_mp4.exists():
+        return page_mp4
+
+    # Phase 1 — vision
+    if page_json.exists():
+        page_analysis = PageAnalysis(**json.loads(page_json.read_text()))
+    else:
+        page_analysis = parse_page(page_image, layout=layout)
+        page_json.write_text(page_analysis.model_dump_json(indent=2))
+
+    # Phase 2 — script
+    if script_json.exists():
+        script = Script(**json.loads(script_json.read_text()))
+    else:
+        script, cast = build_script(
+            page_analysis,
+            voice_bank_dir=voice_bank_dir,
+            narrator_voice_id=narrator_voice_id,
+        )
+        script_json.write_text(script.model_dump_json(indent=2))
+        cast_json.write_text(cast.model_dump_json(indent=2))
+
+    if vision_only:
+        return None
+
+    # Phase 3 — audio (render_audio writes narration.wav + timing.json into work_dir)
+    narration, timing = render_audio(
+        script,
+        voice_bank_dir=voice_bank_dir,
+        freesound_api_key=freesound_api_key,
+        output_dir=work_dir,
+    )
+
+    # Phase 4 — video
+    render_video(page_image, page_analysis, timing, narration, page_mp4)
+    return page_mp4
+
+
+def narrate_book(
+    pdf_path: Path,
+    output_path: Path,
+    layout: str = "manga",
+    chapter_pages: list[int] | None = None,
+    voice_bank_dir: Path | None = None,
+    narrator_voice_id: str = "_narrator",
+    freesound_api_key: str = "",
+    vision_only: bool = False,
+    progress_callback=None,
+) -> list[Path]:
+    """PDF book → one narrated MP4 per chapter.
+
+    Work tree: {output_dir}/{output_stem}-work/
+        pages/page_NNNN.jpg        rendered PDF pages
+        page_NNNN/...              per-page intermediates + page.mp4
+
+    Returns the list of chapter video paths. Single chapter → exactly
+    [output_path]; multiple → output_stem_ch01.mp4, _ch02.mp4, ...
+    """
+    from comic_narrator.config import VOICE_BANK_DIR
+    from comic_narrator.video.compose import concat_videos
+
+    if voice_bank_dir is None:
+        voice_bank_dir = VOICE_BANK_DIR
+
+    output_path = Path(output_path)
+    work_root = output_path.parent / f"{output_path.stem}-work"
+    page_images = split_pdf(Path(pdf_path), work_root / "pages")
+    n_pages = len(page_images)
+    print(f"Book: {n_pages} pages → {work_root}")
+
+    page_videos: list[Path] = []
+    for idx, page_image in enumerate(page_images, start=1):
+        work_dir = work_root / f"page_{idx:04d}"
+        already = (work_dir / "page.mp4").exists()
+        print(f"Page {idx}/{n_pages}{' (cached)' if already else ''}...")
+        video = narrate_page_resumable(
+            page_image, work_dir, layout,
+            voice_bank_dir, narrator_voice_id, freesound_api_key,
+            vision_only=vision_only,
+        )
+        if video is not None:
+            page_videos.append(video)
+        if progress_callback:
+            progress_callback(idx, n_pages)
+
+    if vision_only:
+        print(f"Vision pass complete: page/script JSONs in {work_root}. "
+              "Re-run with the audio stack up to render.")
+        return []
+
+    chapters = group_chapters(n_pages, chapter_pages)
+    outputs: list[Path] = []
+    for ci, chapter in enumerate(chapters, start=1):
+        if len(chapters) == 1:
+            chapter_out = output_path
+        else:
+            chapter_out = output_path.with_name(
+                f"{output_path.stem}_ch{ci:02d}{output_path.suffix}"
+            )
+        clips = [page_videos[p - 1] for p in chapter]
+        if len(clips) == 1:
+            shutil.copy(clips[0], chapter_out)
+        else:
+            concat_videos(clips, chapter_out)
+        outputs.append(chapter_out)
+        print(f"Chapter {ci}: pages {chapter[0]}-{chapter[-1]} → {chapter_out}")
+
+    return outputs

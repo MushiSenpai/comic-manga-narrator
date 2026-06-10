@@ -34,26 +34,30 @@ page.jpg
 | Freesound API key (optional — SFX/ambient) | `/data/ai/06-configs/comic-narrator/freesound.env` |
 | FFmpeg ≥ 6.x | system |
 
-**VRAM note:** Nemotron (~30 GB) and the audio stack cannot share the RTX 5090.
-Run the pipeline in two passes using the resume flags (see below) — this mirrors
-the stack's sequential forensic → creative handoff discipline.
+**VRAM note:** the *forensic* Nemotron config (~30 GB) cannot share the RTX
+5090 with the audio stack. `agent-mode.sh` runs the light config (32K ctx,
+~25.7 GB incl. KV) alongside Fish Speech, so the whole pipeline works in one
+command. The two-pass resume flow remains for when forensic work owns the GPU.
+See [docs/BLOG-killing-the-two-pass-dance.md](docs/BLOG-killing-the-two-pass-dance.md).
 
 ## Usage
 
 ```bash
 pip install -e ".[dev]"
 
-# One-shot (requires both Nemotron and the audio gateway — only possible
-# once a light agent-mode config exists; until then use the two-pass flow):
+# Single pass (agent-mode.sh first — Nemotron light + Fish Speech coexist):
 comic-narrator page.jpg --layout manga -o output.mp4
 
-# Two-pass flow (current hardware reality):
-# 1. forensic-mode.sh, then vision + script phases:
-comic-narrator page.jpg --layout manga -o out.mp4 --keep-intermediates
-#    (Phase 3/4 will warn and produce silence — page.json/script.json are the point)
+# PDF book (Phase 7): one MP4 per chapter, resumable per page:
+comic-narrator book.pdf --layout manga -o book.mp4 --chapter-pages 12,25
+
+# Two-pass fallback (forensic mode owns the GPU):
+# 1. forensic-mode.sh, then the vision pass:
+comic-narrator page.jpg --layout manga -o out.mp4 --vision-only
 # 2. audio-mode.sh light, then resume:
 comic-narrator page.jpg --layout manga -o out.mp4 \
     --from-page-json page.json --from-script-json script.json
+# (PDF books: same dance with --vision-only, the work dir keeps per-page JSONs)
 
 # Tests
 pytest tests/ -v
@@ -65,11 +69,15 @@ Voice *metadata* (gender/age/timbre for auto-pick) lives in
 `/data/ai/06-configs/comic-narrator/voices/{voice_id}/voice.yaml`.
 Voice *references* are gateway-side profiles: `/data/ai/02-models/audio/voices/{name}.wav`.
 A voice_id is used as the TTS profile when a matching `{voice_id}.wav` profile exists;
-otherwise everything falls back to the default profile (`avatar-v1`). Clone real
-profiles via the gateway: `job_type=clone, profile_name=<voice_id>`.
+otherwise everything falls back to the default profile (`avatar-v1`). All six MVP
+archetypes are cloned from **CMU ARCTIC** speakers (unrestricted license,
+festvox.org) — see DEVLOG Session 2. Add more via the gateway:
+`job_type=clone, profile_name=<voice_id>`.
 
 ## Status
 
-Phases 0–5 complete and verified end-to-end (2026-06-10). Phase 6 (Hermes skill)
-and Phase 7 (PDF → book scale) not started. See [docs/DEVLOG.md](docs/DEVLOG.md)
-for the build history, issues found, and lessons learned.
+Phases 0–7 complete and verified end-to-end on real manga (2026-06-11),
+including single-pass agent mode, PDF book scale, six cloned voice archetypes,
+Freesound SFX, and the Hermes skill
+(`~/.hermes/skills/media/comic-narrator/SKILL.md`). See
+[docs/DEVLOG.md](docs/DEVLOG.md) for the build history and lessons learned.

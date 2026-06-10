@@ -177,3 +177,65 @@ cutout must land exactly on its own background pixels — the test asserts a
 6. **Stack housekeeping:** light agent-mode vLLM config (EXECUTION-PLAN B2)
    would let Nemotron + Fish Speech coexist and kill the two-pass dance;
    `creative-lipsync` compose service needs a command (currently restart-loops).
+
+---
+
+# Session 2 — 2026-06-11: real manga, one-pass mode, voices, book scale
+
+## B2: killing the two-pass dance (six attempts)
+
+A light agent-mode vLLM config now coexists with Fish Speech — full pipeline
+in one command. The tuning saga (free-memory semantics, spec-drift rake №2,
+`Model loading took 21.5 GiB` vs the documented ~18, and the profiling-pass
+discovery: `--max-num-batched-tokens` 16384→4096 was the fix that mattered)
+is written up as a standalone post: [BLOG-killing-the-two-pass-dance.md](BLOG-killing-the-two-pass-dance.md).
+Final budget: vLLM 25.7 GiB (util 0.82, 32K ctx, KV 1.1 GiB / 76K tokens) +
+Fish Speech 2.3 GiB + ~4 GiB headroom. New: `agent-mode.sh`,
+`/data/ai/06-configs/vllm-nemotron-agent/`.
+
+## Real manga page: two new bug classes
+
+First run on a real One Piece page (PDF → 300 DPI): panel detection and
+reading order were *fine*; Pass 2 scene description was *excellent*; and yet
+zero dialogue/captions/SFX survived into the script.
+
+**Bug 6 — the model echoed the prompt's key notation.** PASS2_SYSTEM described
+fields as `"dialogues[]":` and Nemotron returned literal JSON keys
+`"dialogues[]"`. The consumer's `data.get("dialogues")` quietly got nothing.
+The synthetic-page runs had returned plain keys — model variance decided
+which key style you get. Fixes: prompts now say `"dialogues" (array):`, and
+`_parse_json()` normalizes any `key[]` → `key` (plus `_str_items()` for
+captions that arrive as `{"text": ...}` dicts instead of strings).
+*Lesson: any literal notation in your prompt's field list is a candidate
+output key. Normalize on parse, not just on prompt.*
+
+**Bug 7 — wordless panels had no screen time.** The mixer only emitted
+timing entries for panels with audio events, so a wordless page produced
+empty timing → zero clips → ffmpeg concat exit 183 (the same crash signature
+as Session 1's "no TTS" failure — same root class: timing-empty is a reachable
+state and Phase 4 must survive it). Fix in render_audio: voiceless panels get
+a silent bed at `silent_min` pacing, and event_files are sorted into script
+(reading) order before mixing.
+
+## Voice bank: public datasets instead of recording gear
+
+No microphones, no voice actors — solved with **CMU ARCTIC** (festvox.org):
+studio-quality, unrestricted BSD-style license (commercial OK; Meta's
+Expresso et al. are CC-NC and were rejected for license reasons), per-utterance
+WAVs directly downloadable. Six archetype profiles cloned via the gateway
+(`job_type=clone`): rms→`_narrator`, bdl→`male_young_bright`,
+awb→`male_adult_gruff`, clb→`female_young_bright`, slt→`female_adult_warm`,
+and rms pitched down 28% (ffmpeg asetrate/atempo) →`monster_deep`.
+Distinct voices with zero code changes — `resolve_profile()` matches
+voice_id → profile name as designed. Alternatives noted: VCTK (CC BY 4.0,
+110 speakers) and Common Voice (CC0) if more variety is needed later.
+
+## Phase 7 + Phase 6 landed
+
+- `scale.py`: PDF → per-page work dirs → chapter MP4s; resumable at every
+  artifact; `--vision-only` makes the two-pass flow work at book scale too;
+  `--chapter-pages 12,25` splits chapters. CLI now accepts PDFs directly.
+- Hermes skill at `~/.hermes/skills/media/comic-narrator/SKILL.md` — teaches
+  the agent mode requirements, single page + book usage, and troubleshooting.
+- Freesound key installed (gotcha: the env file must read
+  `FREESOUND_API_KEY=<key>`, not a bare key — the loader parses `K=V` lines).

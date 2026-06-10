@@ -8,7 +8,7 @@ from comic_narrator.schemas import Script, Timing
 from comic_narrator.audio.tts_fish import FishSpeechTTS
 from comic_narrator.audio.freesound import FreesoundClient
 from comic_narrator.audio.mixer import mix_audio
-from comic_narrator.config import VOICE_BANK_DIR, SFX_CACHE_DIR, SFX_MAP_PATH
+from comic_narrator.config import VOICE_BANK_DIR, SFX_CACHE_DIR, SFX_MAP_PATH, PACING
 
 
 def render_audio(
@@ -77,6 +77,36 @@ def render_audio(
                 all_cues.append(e.text)
         if all_cues:
             ambient_file = sfx_client.resolve_ambient(all_cues)
+
+    # Panels with script events but no audio (wordless panels / splash pages)
+    # still need screen time — bed them with silence so the mixer emits a
+    # timing entry and Phase 4 renders the panel. Without this, a fully
+    # wordless page produces empty timing and zero video clips.
+    covered = {ef["panel_id"] for ef in event_files}
+    silent_durations: dict[int, float] = {}
+    for e in script.events:
+        if e.panel_id not in covered:
+            silent_durations[e.panel_id] = (
+                silent_durations.get(e.panel_id, 0.0) + (e.duration_sec or 0.0)
+            )
+    for panel_id, dur in silent_durations.items():
+        dur = max(dur, PACING["silent_min"])
+        silent_wav = wav_dir / f"silent_p{panel_id}.wav"
+        tts._write_silence(silent_wav, duration_sec=dur)
+        event_files.append({
+            "event_id": f"sil_{panel_id}",
+            "panel_id": panel_id,
+            "wav_path": silent_wav,
+            "kind": "silence",
+            "pause_override": None,
+        })
+
+    # The mixer walks event_files sequentially — keep panels in script
+    # (reading) order so the timeline matches the page.
+    panel_order: dict[int, int] = {}
+    for i, e in enumerate(script.events):
+        panel_order.setdefault(e.panel_id, i)
+    event_files.sort(key=lambda ef: panel_order.get(ef["panel_id"], 10_000))
 
     # Mix
     narration_path = output_dir / "narration.wav"

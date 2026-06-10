@@ -35,6 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--from-page-json", help="Skip Phase 1, use existing page.json")
     parser.add_argument("--from-script-json", help="Skip Phases 1-2, use existing script.json")
     parser.add_argument("--chapter-pages", help="Comma-separated page numbers for chapter splits")
+    parser.add_argument("--vision-only", action="store_true",
+                        help="Run Phases 1-2 only (page/script JSONs) — the Nemotron pass of the two-pass VRAM flow")
     parser.add_argument("--aspect", choices=["letterbox", "vertical-shorts"], default="letterbox")
     parser.add_argument("--freesound-key", help="Freesound API key (or set FREESOUND_API_KEY env)")
     return parser
@@ -67,9 +69,23 @@ def main() -> None:
         page_analysis = PageAnalysis(**page_json)
         print(f"Loaded page.json from {args.from_page_json}")
     elif is_pdf:
-        # PDF → split later in Phase 7; for now, error gracefully
-        print("PDF input requires Phase 7 (book-scale). Use a page image for Phase 5.")
-        sys.exit(1)
+        # Phase 7 — book scale
+        from comic_narrator.scale import narrate_book
+        chapter_pages = None
+        if args.chapter_pages:
+            chapter_pages = [int(x) for x in args.chapter_pages.split(",") if x.strip()]
+        outputs = narrate_book(
+            input_path, output_path,
+            layout=args.layout,
+            chapter_pages=chapter_pages,
+            voice_bank_dir=voice_bank,
+            narrator_voice_id=args.narrator_voice,
+            freesound_api_key=freesound_key,
+            vision_only=args.vision_only,
+        )
+        for o in outputs:
+            print(f"  Output: {o}")
+        sys.exit(0)
     else:
         print(f"Phase 1: Analyzing page: {input_path}")
         panels_override = None
@@ -110,6 +126,14 @@ def main() -> None:
             (out_dir / "script.json").write_text(script.model_dump_json(indent=2))
             (out_dir / "cast.json").write_text(cast.model_dump_json(indent=2))
         print(f"  Emitted {len(script.events)} events, {len(cast.members)} cast members")
+
+    if args.vision_only:
+        out_dir = output_path.parent
+        (out_dir / "page.json").write_text(page_analysis.model_dump_json(indent=2))
+        (out_dir / "script.json").write_text(script.model_dump_json(indent=2))
+        print(f"Vision pass complete: {out_dir}/page.json + script.json. "
+              "Re-run with --from-page-json/--from-script-json once the audio stack is up.")
+        sys.exit(0)
 
     # ── Phase 3: Audio ───────────────────────────────────────────
     from comic_narrator.render_audio import render_audio
