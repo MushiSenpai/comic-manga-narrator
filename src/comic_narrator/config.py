@@ -4,7 +4,7 @@ from pathlib import Path
 
 # ── Paths ───────────────────────────────────────────────────────────────
 
-PROJECT_ROOT = Path("/data/ai/08-portfolio/comic-narrator")
+PROJECT_ROOT = Path("/data/ai/08-portfolio/comic-manga-narrator")
 CONFIG_ROOT = Path("/data/ai/06-configs/comic-narrator")
 VOICE_BANK_DIR = CONFIG_ROOT / "voices"
 SFX_CACHE_DIR = CONFIG_ROOT / "sfx-cache"

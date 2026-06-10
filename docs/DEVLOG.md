@@ -239,3 +239,27 @@ voice_id → profile name as designed. Alternatives noted: VCTK (CC BY 4.0,
   the agent mode requirements, single page + book usage, and troubleshooting.
 - Freesound key installed (gotcha: the env file must read
   `FREESOUND_API_KEY=<key>`, not a bare key — the loader parses `K=V` lines).
+
+---
+
+# Session 3 — 2026-06-11: rename, publication, refinement roadmap
+
+- Project renamed `comic-narrator` → **`comic-manga-narrator`** (dir, GitHub
+  repo, Hermes skill). Gotcha: an editable venv hardcodes absolute paths in
+  its script shebangs — the venv had to be rebuilt after the move.
+- GitHub repo created (`MushiSenpai/comic-manga-narrator`, private). First
+  push was rejected by GitHub's email-privacy protection — commits carried a
+  private email address. Resolution recorded in the repo history.
+- POC critique captured into [ROADMAP.md](ROADMAP.md): four tracks —
+  **A** immersive motion (panel-space framing, speaker punch-in, pop v2,
+  pacing-driven dynamics), **B** emotional voice acting (tone→delivery params,
+  emotion-variant references, book-level cast persistence), **C** Japanese
+  source + subtitles (CC0 Common Voice ja voices, srt emission, local
+  translation track), **D** ops. Key insight: the vision pass *already
+  extracts* `tone`, `dominant_emotion`, `pacing_hint`, and speaker bboxes —
+  Phase 3/4 simply don't consume them yet. The immersion gap is a consumer
+  problem, not a vision problem.
+- Voice sourcing documented in [VOICES.md](VOICES.md) (license cheat-sheet:
+  the "110 speakers" set is VCTK/CC-BY/English; multilingual CC0 = Common
+  Voice) + `scripts/curate-cv-voices.py` to turn a Common Voice dump into
+  cloned gateway profiles.
