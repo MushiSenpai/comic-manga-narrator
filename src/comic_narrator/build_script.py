@@ -168,6 +168,17 @@ def build_script(
                 duration_sec=duration,
             ))
 
+        # ── Visual SFX (E3): sounds you can SEE — seagulls, the cow ──
+        for vsfx in panel.visual_sfx:
+            event_counter += 1
+            events.append(ScriptEvent(
+                event_id=f"vsx_{event_counter:03d}",
+                panel_id=panel.panel_id,
+                kind=EventKind.sfx,
+                text=vsfx,
+                duration_sec=2.0,
+            ))
+
         # ── Inter-panel pause ────────────────────────────────────────
         pause = PACING["inter_panel_pause_min"]
         if panel.pacing_hint == "dramatic_reveal":

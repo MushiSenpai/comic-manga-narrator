@@ -115,6 +115,7 @@ Output valid JSON with these rules:
   - "tone": delivery style ("shouting","whispering","dismissive","nervous","confident","neutral")
 - "captions" (array): narrator text boxes (not spoken by characters)
 - "sfx_text" (array): sound effect text art (e.g. "FWAP", "BOOM", "CRASH")
+- "visual_sfx" (array): 0-3 sounds implied by VISIBLE action or creatures even when no sound text is drawn — these get foregrounded in the mix (seagulls flying → "seagull cries", a cow standing in farmland → "cow moo", a flapping flag → "flag flapping", a crashing wave → "wave crash"). Only clearly audible moment-sounds; continuous background goes in ambient_cues.
 - "ambient_cues" (array): 2-5 keywords for the background soundscape implied by what is VISIBLE in the art — inventory the sound sources forensically even when nothing is written: birds in the sky → "seagulls", ship on water → "waves" and "creaking ship", flags or sails → "flapping cloth", village street → "distant chatter", forest → "rustling leaves", rain drawn → "rain"
 - "pacing_hint": "dramatic_reveal", "quick_transition", "action_peak", or "" for normal pace
 
@@ -293,6 +294,7 @@ class NemotronClient:
             dialogues=dialogues,
             captions=_str_items(data.get("captions")),
             sfx_text=_str_items(data.get("sfx_text")),
+            visual_sfx=_str_items(data.get("visual_sfx")),
             ambient_cues=_str_items(data.get("ambient_cues")),
             pacing_hint=data.get("pacing_hint", ""),
         )

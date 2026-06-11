@@ -59,6 +59,7 @@ class PanelAnalysis(BaseModel):
     dialogues: list[Dialogue] = Field(default_factory=list)
     captions: list[str] = Field(default_factory=list)
     sfx_text: list[str] = Field(default_factory=list)
+    visual_sfx: list[str] = Field(default_factory=list)  # sounds implied by visible action (E3)
     ambient_cues: list[str] = Field(default_factory=list)
     pacing_hint: str = ""  # "dramatic_reveal" | "quick_transition" | ...
 
