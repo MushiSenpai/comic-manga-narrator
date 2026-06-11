@@ -39,30 +39,28 @@ languages, the CC0 option is **Common Voice**.
 
 ## Common Voice: getting Japanese voices (CC0)
 
-Two routes:
+**⚠ Updated 2026-06-11 — verified live.** As of **October 2025**, Mozilla
+distributes Common Voice **exclusively via the Mozilla Data Collective**.
+The old routes are dead ends: the Hugging Face repos
+(`mozilla-foundation/common_voice_*`) are pointer stubs with no data, and
+the commonvoice.mozilla.org datasets page forwards to the Collective.
 
-**Route 1 — official site (simplest):**
-1. https://commonvoice.mozilla.org/ja/datasets → pick *Japanese* → enter an
-   email → you get a direct tarball link (`cv-corpus-*-ja.tar.gz`, a few GB).
-2. Extract: `clips/*.mp3` + `validated.tsv` (columns: `client_id` = speaker,
+**The one working route:**
+1. Go to **https://mozilladatacollective.com** and create a free account.
+2. Search for **"Common Voice"** and pick the *Japanese* entry of the
+   newest corpus (e.g. "Common Voice Corpus 22.x – Japanese").
+3. Accept the dataset terms on that page (the data itself is CC0) and
+   download the tarball (`cv-corpus-*-ja.tar.gz`, a few GB).
+4. Extract: `clips/*.mp3` + `validated.tsv` (columns: `client_id` = speaker,
    `path`, `sentence`, `up_votes`, `down_votes`, `age`, `gender`).
-
-**Route 2 — Hugging Face (scriptable):**
-```bash
-# one-time: accept the terms at
-# https://huggingface.co/datasets/mozilla-foundation/common_voice_17_0
-hf download mozilla-foundation/common_voice_17_0 \
-  --repo-type dataset \
-  --include "audio/ja/train/*" "transcript/ja/*" \
-  --local-dir /data/ai/03-data/audio/common-voice-ja
-```
 
 **Curation → profiles** (quality varies — webcam mics — so filter hard):
 1. Keep clips with `up_votes ≥ 2, down_votes = 0`, duration 3-10s.
 2. Group by `client_id`; keep speakers with ≥ 6 good clips; use `gender`/`age`
    columns to cover archetypes (young female, adult male, ...).
 3. Concat ~20s per speaker, Demucs-clean, clone:
-   `scripts/curate-cv-voices.py` automates 1-3 (see `--help`).
+   `scripts/curate-cv-voices.py <extracted-dir> --out /tmp/cv-ja --lang ja --clone`
+   automates 1-3 (see `--help`).
 4. Name profiles with a language prefix: `ja_female_young_bright.wav` etc.
    Then narrate with `--voice-bank` pointing at a ja bank, or extend
    `VOICE_MATCH_RULES` with language-aware ids (Track C2).
