@@ -383,3 +383,25 @@ commits:
   moo + seagulls + windmill creak (!) → ship panel with flag flap + wave
   crash → dialogue panel with punch-in, shouted "HEY, LUFFY!", humph'd
   HMPH, subtitles offset past the 3s overview.
+
+---
+
+# Session 6 — 2026-06-11: C2 — Japanese voices via Mozilla Data Collective
+
+- Discovery: MDC's REST API has no list/search endpoint (only
+  `/datasets/{id}`) and the site search is browser-rendered. Workaround:
+  enumerate the **sitemap.xml** (792 dataset IDs) and resolve names via the
+  authenticated details endpoint — exactly one Japanese voice dataset
+  exists: *Common Voice Scripted Speech 25.0 – Japanese*
+  (`cmn2hm68r01n4mm071qux43yu`, CC0).
+- The API refuses downloads until the **account owner accepts the dataset's
+  terms on its web page** — the SDK error message includes the exact URL,
+  which is the right way to fail. (User accepted + downloaded via browser;
+  15GB tarball, 584K clips, 300K validated rows.)
+- `curate-cv-voices.py` fix: Common Voice TSVs exceed Python's default csv
+  field limit (131072) — `csv.field_size_limit(sys.maxsize)`.
+- Eight ja profiles cloned (3F/5M, twenties→fifties, real CV gender/age
+  metadata in the profile names). Japanese TTS verified end-to-end through
+  the gateway with `language=ja` — natural prosody from ~22s references.
+- C2 closed. Next Japanese milestone: language-aware voice auto-pick + a raw
+  Japanese page through `--lang ja` (C5).

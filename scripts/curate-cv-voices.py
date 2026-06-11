@@ -16,6 +16,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import sys as _sys
+
+# Common Voice TSVs carry very large free-text fields (accent/domain blobs)
+csv.field_size_limit(_sys.maxsize)
 import subprocess
 import sys
 from collections import defaultdict

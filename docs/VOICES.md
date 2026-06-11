@@ -24,6 +24,28 @@ overwritten in place — same names, zero code changes.)
 Profiles live in `/data/ai/02-models/audio/voices/{name}.wav`; the TTS worker
 selects them by name. Anything matching a `voice_id` is picked automatically.
 
+## Japanese bank (installed 2026-06-11, C2 complete)
+
+Eight speakers from **Common Voice Scripted Speech 25.0 – Japanese** (CC0,
+via Mozilla Data Collective, dataset `cmn2hm68r01n4mm071qux43yu`), curated by
+`scripts/curate-cv-voices.py` (≥2 upvotes / 0 downvotes, 3-10s clips, ~22s
+references) and cloned through the gateway:
+
+`ja_f_fourties_02a884`, `ja_f_fourties_a09e35`, `ja_f_fifties_7f373f`,
+`ja_m_twenties_2e8835`, `ja_m_twenties_331023`, `ja_m_twenties_344712`,
+`ja_m_thirties_3c9d94`, `ja_m_fourties_e5689a`
+
+Verified: Fish Speech synthesizes natural Japanese from these references
+(`language=ja` in the TTS job). Corpus on disk:
+`/data/ai/03-data/audio/common-voice-ja/`. MDC API key:
+`/data/ai/06-configs/comic-narrator/mdc.env` (`MDC_API_KEY`, used by the
+`datacollective` SDK; note the per-dataset terms click must happen on the
+website before any API download).
+
+Remaining for full Japanese narration: map ja profiles into voice auto-pick
+(language-aware `VOICE_MATCH_RULES` or a `--voice-bank` ja bank) and run a
+raw Japanese page with `--lang ja` (ROADMAP C5 vertical-text validation).
+
 ## Dataset license cheat-sheet (for a commercial/T1 stack)
 
 | Dataset | License | Speakers | Languages | Verdict |
