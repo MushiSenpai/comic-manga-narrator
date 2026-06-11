@@ -83,11 +83,17 @@ def parse_page(
 
             try:
                 analysis = client.pass2_analyze_panel(panel_img_path, panel.id, lang=lang)
-            except Exception as e:
-                # Log error and create stub analysis so pipeline doesn't halt
-                from comic_narrator.schemas import PanelAnalysis
-                analysis = PanelAnalysis(panel_id=panel.id)
-                print(f"  [WARN] Pass 2 failed for panel {panel.id}: {e}")
+            except Exception as first_err:
+                # One retry — temperature 0.1 still has output variance and a
+                # second sample usually parses. Then stub so the pipeline
+                # doesn't halt on a single bad panel.
+                try:
+                    analysis = client.pass2_analyze_panel(panel_img_path, panel.id, lang=lang)
+                    print(f"  [INFO] Pass 2 retry succeeded for panel {panel.id} (first: {first_err})")
+                except Exception as e:
+                    from comic_narrator.schemas import PanelAnalysis
+                    analysis = PanelAnalysis(panel_id=panel.id)
+                    print(f"  [WARN] Pass 2 failed twice for panel {panel.id}: {e}")
 
             panels_analysis.append(analysis)
 

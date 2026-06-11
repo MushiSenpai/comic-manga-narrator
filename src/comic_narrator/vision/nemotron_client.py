@@ -221,6 +221,11 @@ class NemotronClient:
         except json.JSONDecodeError:
             # Try json_repair for malformed JSON
             data = json_repair.loads(text)
+        if not isinstance(data, dict):
+            # Model emitted a bare string / list / nothing usable — callers
+            # uniformly .get() on the result, so fail soft with an empty dict
+            # (the retry in parse_page gets a second shot).
+            raise ValueError(f"model output is not a JSON object: {str(data)[:80]!r}")
         return _normalize_keys(data)
 
     # ── Pass 1: Panel Detection ─────────────────────────────────────
