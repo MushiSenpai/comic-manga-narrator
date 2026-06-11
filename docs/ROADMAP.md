@@ -78,7 +78,7 @@ birds should sound like a harbor with gulls.
 |---|---|---|
 | E1 | Visual ambient cues | ✅ Pass 2 derives cues from artwork (verified: harbor page → wind/birds/sea/waves/seagulls with zero ambient text in bubbles); prompt now demands a forensic sound-source inventory (2-5 cues per panel) |
 | E2 | **Per-panel ambient beds** | ✅ 2026-06-11: each panel gets up to 2 layered beds over its own timeline span (300ms fades), replacing the single flattened page bed; Freesound ambient searches now target loopable 10-120s recordings, not SFX hits |
-| E3 | Visually-implied SFX events | ⬜ a drawn flapping flag with no "FWAP" text should still emit a one-shot SFX; needs a `visual_sfx[]` field in Pass 2 + event plumbing |
+| E3 | Visually-implied SFX events | ✅ 2026-06-11: Pass 2 emits `visual_sfx` (seagulls → cries, cow → moo, flag → flap); build_script turns them into -9dB one-shot events — audible over the ducked beds |
 | E4 | Dialogue ducking | ✅ 2026-06-11: beds drop 5dB under speech (120ms margins); lower ambient a further 4-6dB under dialogue/caption spans (pydub gain automation) so beds never fight the voices |
 | E5 | Curated `sfx_map.yaml` growth | ⬜ pin known-good Freesound IDs for the common cues (waves, wind, crowd, rain, seagulls) — text search top-hit is a lottery |
 

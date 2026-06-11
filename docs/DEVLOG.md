@@ -331,3 +331,35 @@ nothing — the same dead-data pattern as `tone`). Shipped in one pass:
 - **A4** pacing profiles in camera.py: action_peak punches at 50% with 3px
   shake, dramatic_reveal creeps the full clip, quick_transition arrives early.
 - Mirror note: us.openslr.org fails TLS (curl exit 60); openslr.elda.org works.
+
+---
+
+# Session 5 — 2026-06-11: expressions, foregrounded visual sounds, establishing shot
+
+Three pieces of user feedback on the v4 sample, all shipped as separate
+commits:
+
+1. **"HMPH is an expression, not a spelling bee."** All-caps comics
+   lettering made the TTS spell interjections out letter by letter. TTS
+   input is now normalized — all-caps lines get sentence-cased and an
+   interjection lexicon maps expressions to pronounceable forms
+   (HMPH→humph, TCH→tsk, GRR→grrr...). Subtitles keep the author's
+   original lettering; only the synthesis input changes. Test-writing
+   lesson: sentence-initial interjections keep their capital — the first
+   "failure" was a wrong test expectation, not wrong code.
+
+2. **"The seagulls and the cow are drawn ON PURPOSE — make them heard."**
+   The author draws sound sources so readers hear the scene; burying them
+   at -18dB (ducked -23dB) in an ambient bed wasn't honoring that. New
+   Pass 2 field `visual_sfx` (0-3 per panel, moment-sounds implied by
+   visible action/creatures, distinct from continuous `ambient_cues`);
+   build_script emits them as one-shot SFX events at -9dB — the same level
+   as drawn sound text. E3 closed.
+
+3. **"Show the full page first, then go into the boxes."** Every page
+   render now opens with a ~3s establishing shot — the whole page
+   pillarboxed on black with a slow push — before the camera goes panel by
+   panel. The overview carries a silent AAC track so the concat demuxer
+   sees uniform streams (mixed stream params are exactly the class of
+   silent concat bug this project keeps meeting). Subtitle timestamps
+   offset by the overview length in both single-page and book-merge paths.
