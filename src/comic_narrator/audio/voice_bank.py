@@ -99,6 +99,7 @@ def match_voice(
     voice_type: str = "human",
     voice_bank: Optional[dict[str, VoiceProfile]] = None,
     lang: str = "en",
+    exclude: Optional[set[str]] = None,
 ) -> str:
     """Auto-pick a voice_id from voice_attributes.
 
@@ -124,8 +125,18 @@ def match_voice(
         prefix = f"{lang}_"
         candidates = [p for vid, p in voice_bank.items() if vid.startswith(prefix)]
         if candidates:
-            best = max(candidates, key=lambda p: _score_profile(p, attrs_lower))
-            return best.voice_id
+            # Rank by score; on ties prefer a voice nobody is using yet —
+            # otherwise the whole cast (narrator included) collapses onto
+            # whichever profile comes first in dict order.
+            ranked = sorted(
+                candidates,
+                key=lambda p: _score_profile(p, attrs_lower),
+                reverse=True,
+            )
+            for prof in ranked:
+                if not exclude or prof.voice_id not in exclude:
+                    return prof.voice_id
+            return ranked[0].voice_id
 
     # If non-human, try to find matching voice_type in bank first
     if voice_type != "human" and voice_bank:

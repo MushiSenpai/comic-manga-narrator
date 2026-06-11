@@ -150,7 +150,10 @@ def build_script(
                         attrs = char.voice_attributes
                         voice_type = char.voice_type
                         break
-                char_map[speaker] = match_voice(attrs, voice_type, voice_bank, lang=lang)
+                char_map[speaker] = match_voice(
+                    attrs, voice_type, voice_bank, lang=lang,
+                    exclude=set(char_map.values()) | {narrator_voice_id},
+                )
 
             voice_id = char_map[speaker]
             duration = estimate_duration(dialogue.text, EventKind.dialogue)
