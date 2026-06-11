@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from comic_narrator.schemas import Script, Timing
@@ -42,10 +43,25 @@ INTERJECTIONS = {
     "whew": "phew",
 }
 
+# Caption-triggered one-shot cue queries: when narration TEXT names an
+# audible phenomenon ("THE WIND BLOWS FROM THE EAST"), play the sound right
+# after the line — "wind blowing... woooosh".
+CAPTION_CUES = {
+    "wind": "wind gust",
+    "waves": "wave crash",
+    "rain": "rain falling",
+    "thunder": "thunder clap",
+    "seagull": "seagull cry",
+    "seagulls": "seagull cry",
+    "birds": "birds chirping",
+    "crowd": "crowd murmur",
+    "explosion": "explosion",
+    "storm": "storm wind",
+}
+
 
 def normalize_tts_text(text: str) -> str:
     """Make comics lettering speakable: de-caps + expand interjections."""
-    import re
     t = text.strip()
     if t.isupper():
         t = t.lower()
@@ -59,23 +75,6 @@ def normalize_tts_text(text: str) -> str:
         else:
             out.append(w)
     return "".join(out)
-
-
-# Caption-triggered one-shot cues: when narration TEXT names an audible
-# phenomenon ("THE WIND BLOWS FROM THE EAST"), play the sound right after
-# the line — "wind blowing... woooosh".
-CAPTION_CUES = {
-    "wind": "wind gust",
-    "waves": "wave crash",
-    "rain": "rain falling",
-    "thunder": "thunder clap",
-    "seagull": "seagull cry",
-    "seagulls": "seagull cry",
-    "birds": "birds chirping",
-    "crowd": "crowd murmur",
-    "explosion": "explosion",
-    "storm": "storm wind",
-}
 
 
 def render_audio(
@@ -120,7 +119,9 @@ def render_audio(
         except Exception as e:
             print(f"  [WARN] TTS failed for {ev['event_id']}: {e}")
 
-    # SFX events: resolve via Freesound
+    # SFX events: drawn sound text AND visual SFX (E3 — sounds implied by
+    # visible action: seagulls → cries, cow → moo) resolve via Freesound at
+    # -9dB, clearly audible over the ducked ambient beds.
     if freesound_api_key:
         sfx_client = FreesoundClient(freesound_api_key, sfx_cache_dir, sfx_map_path)
         for e in script.events:
@@ -135,57 +136,17 @@ def render_audio(
                         "pause_override": e.pause_override,
                     })
 
-    # Comics lettering is ALL CAPS by convention; TTS engines read caps as
-# spelled-out letters or robotic emphasis. Interjections are expressions,
-# not words to spell ("HMPH" must sound like a scoff, not aitch-em-pee-aitch).
-# Subtitles keep the original lettering — only the TTS input is normalized.
-INTERJECTIONS = {
-    "hmph": "humph",
-    "hmm": "hmm",
-    "hm": "hmm",
-    "tch": "tsk",
-    "grr": "grrr",
-    "ugh": "ugh",
-    "huh": "huh",
-    "heh": "heh",
-    "pfft": "pfft",
-    "gah": "gah",
-    "eh": "eh",
-    "ow": "ow",
-    "whew": "phew",
-}
-
-
-def normalize_tts_text(text: str) -> str:
-    """Make comics lettering speakable: de-caps + expand interjections."""
-    import re
-    t = text.strip()
-    if t.isupper():
-        t = t.lower()
-        t = t[:1].upper() + t[1:]
-    words = re.split(r"(\W+)", t)
-    out = []
-    for w in words:
-        if w.isalpha() and w.lower() in INTERJECTIONS:
-            r = INTERJECTIONS[w.lower()]
-            out.append(r.capitalize() if w[:1].isupper() else r)
-        else:
-            out.append(w)
-    return "".join(out)
-
-
-# Caption-triggered one-shot cues ("THE WIND BLOWS..." → woooosh).
-    # Inserted immediately after the caption that names the phenomenon, a
-    # touch louder than the ambient bed so it reads as a cue, not texture.
+    # Caption-triggered one-shot cues, inserted immediately after the caption
+    # that names the phenomenon, a touch louder than SFX level so it reads as
+    # a cue, not texture.
     if freesound_api_key:
-        import re as _re
         sfx_client = FreesoundClient(freesound_api_key, sfx_cache_dir, sfx_map_path)
         cued: list[dict] = []
         for ef in event_files:
             cued.append(ef)
             if ef.get("kind") != "caption":
                 continue
-            words = set(_re.findall(r"[a-z']+", ef.get("text", "").lower()))
+            words = set(re.findall(r"[a-z']+", ef.get("text", "").lower()))
             for word, query in CAPTION_CUES.items():
                 if word in words:
                     cue_path = sfx_client.resolve_sfx(query)

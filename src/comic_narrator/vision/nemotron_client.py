@@ -268,6 +268,8 @@ class NemotronClient:
 
         characters = []
         for c in data.get("characters", []):
+            if not isinstance(c, dict):
+                continue  # model occasionally emits bare strings in lists
             char_bbox = None
             if c.get("bbox") and c.get("is_visible", True):
                 char_bbox = _coerce_bbox(c["bbox"], panel_image_path)
@@ -285,6 +287,7 @@ class NemotronClient:
         dialogues = [
             Dialogue(speaker=d.get("speaker", ""), text=d.get("text", ""), tone=d.get("tone", "neutral"))
             for d in data.get("dialogues", [])
+            if isinstance(d, dict)
         ]
 
         return PanelAnalysis(
