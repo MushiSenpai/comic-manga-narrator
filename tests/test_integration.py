@@ -20,7 +20,7 @@ from comic_narrator.schemas import (
 TEST_PAGE = Path(__file__).parent / "fixtures" / "test_page.jpg"
 
 
-def _fake_synthesize(self, text, voice_id, output_path, speed=1.0):
+def _fake_synthesize(self, text, voice_id, output_path, speed=1.0, **kwargs):
     """Stand-in for the gateway: writes a 0.8s tone, returns its duration."""
     rate = 44100
     seconds = 0.8

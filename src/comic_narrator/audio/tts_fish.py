@@ -45,13 +45,17 @@ class FishSpeechTTS:
             return False
 
     @staticmethod
-    def resolve_profile(voice_id: str) -> str:
-        """Map a voice bank voice_id to a gateway voice profile name.
+    def resolve_profile(voice_id: str, emotion: str = "") -> str:
+        """Map a voice bank voice_id (+ optional emotion) to a profile name.
 
-        Uses {voice_id}.wav if it exists in the stack voice dir, otherwise
-        falls back to the default profile (clone real ones via the gateway's
-        "clone" job type: profile_name={voice_id}).
+        B2 emotion variants: Fish Speech cloning follows the *affect* of the
+        reference clip, so "{voice_id}__{emotion}.wav" (e.g.
+        male_young_bright__angry.wav) delivers the same character angry.
+        Resolution: emotion variant → base profile → default. Clone variants
+        via the gateway: profile_name={voice_id}__{emotion}.
         """
+        if emotion and (STACK_VOICE_DIR / f"{voice_id}__{emotion}.wav").exists():
+            return f"{voice_id}__{emotion}"
         if (STACK_VOICE_DIR / f"{voice_id}.wav").exists():
             return voice_id
         return DEFAULT_VOICE_PROFILE
@@ -62,6 +66,7 @@ class FishSpeechTTS:
         voice_id: str,
         output_path: Path,
         speed: float = 1.0,
+        emotion: str = "",
     ) -> float:
         """Submit TTS job, poll until finished, copy WAV. Returns duration_sec."""
         if not self.health_check():
@@ -72,7 +77,7 @@ class FishSpeechTTS:
             data={
                 "job_type": "tts",
                 "text": text,
-                "voice_profile": self.resolve_profile(voice_id),
+                "voice_profile": self.resolve_profile(voice_id, emotion),
                 "speed": str(speed),
             },
             timeout=30,

@@ -60,6 +60,20 @@ CAPTION_CUES = {
 }
 
 
+# B2 — tone → emotion-variant bucket. If the bank has a
+# {voice_id}__{emotion}.wav reference, the same character speaks with that
+# affect; otherwise the base reference is used (speed/gain still apply).
+TONE_EMOTION = {
+    "shouting": "angry",
+    "loud": "angry",
+    "whispering": "soft",
+    "nervous": "nervous",
+    "sad": "sad",
+    "crying": "sad",
+    "excited": "excited",
+}
+
+
 def normalize_tts_text(text: str) -> str:
     """Make comics lettering speakable: de-caps + expand interjections."""
     t = text.strip()
@@ -113,8 +127,10 @@ def render_audio(
     for ev in tts_events:
         out_wav = wav_dir / f"{ev['event_id']}.wav"
         speed, gain_db = TONE_DELIVERY.get(ev.get("tone", ""), (1.0, 0.0))
+        emotion = TONE_EMOTION.get(ev.get("tone", ""), "")
         try:
-            tts.synthesize(normalize_tts_text(ev["text"]), ev["voice_id"], out_wav, speed=speed)
+            tts.synthesize(normalize_tts_text(ev["text"]), ev["voice_id"], out_wav,
+                           speed=speed, emotion=emotion)
             event_files.append({**ev, "wav_path": out_wav, "gain_db": gain_db})
         except Exception as e:
             print(f"  [WARN] TTS failed for {ev['event_id']}: {e}")
