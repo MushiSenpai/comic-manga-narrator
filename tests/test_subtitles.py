@@ -91,3 +91,24 @@ def test_normalize_tts_text():
     assert normalize_tts_text("TCH... fine.") == "Tsk... fine."
     # Mixed-case text passes through untouched
     assert normalize_tts_text("One Piece") == "One Piece"
+
+
+def test_lang_aware_voice_matching():
+    from comic_narrator.audio.voice_bank import match_voice
+    from comic_narrator.schemas import VoiceProfile
+    bank = {
+        "male_young_bright": VoiceProfile(voice_id="male_young_bright", gender="male",
+                                          age_approx="young", pitch_category="high",
+                                          timbre_tags=["bright"], voice_type="human"),
+        "ja_m_twenties_x": VoiceProfile(voice_id="ja_m_twenties_x", gender="male",
+                                        age_approx="young", pitch_category="medium",
+                                        timbre_tags=[], voice_type="human"),
+        "ja_f_fourties_y": VoiceProfile(voice_id="ja_f_fourties_y", gender="female",
+                                        age_approx="adult", pitch_category="medium",
+                                        timbre_tags=[], voice_type="human"),
+    }
+    # Japanese page: young male attrs land on the ja male, not the en archetype
+    assert match_voice(["male", "young"], "human", bank, lang="ja") == "ja_m_twenties_x"
+    assert match_voice(["female", "adult"], "human", bank, lang="ja") == "ja_f_fourties_y"
+    # English page: legacy rules still pick the en archetype
+    assert match_voice(["male", "young"], "human", bank, lang="en") == "male_young_bright"

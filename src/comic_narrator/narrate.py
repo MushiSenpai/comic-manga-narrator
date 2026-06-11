@@ -121,6 +121,7 @@ def main() -> None:
             page_analysis,
             voice_bank_dir=voice_bank,
             narrator_voice_id=args.narrator_voice,
+            lang=args.lang,
         )
         if args.keep_intermediates:
             out_dir = output_path.parent

@@ -13,6 +13,7 @@ from comic_narrator.config import (
     PACING,
     DEFAULT_NARRATOR_VOICE,
     DEFAULT_FALLBACK_VOICE,
+    DEFAULT_NARRATOR_BY_LANG,
 )
 from comic_narrator.schemas import (
     Cast,
@@ -53,6 +54,7 @@ def build_script(
     voice_bank_ids: Optional[list[str]] = None,
     voice_bank_dir: Optional[Path] = None,
     output_dir: Optional[Path] = None,
+    lang: str = "en",
 ) -> tuple[Script, Cast]:
     """Convert PageAnalysis into a timed script with voice assignments.
 
@@ -80,6 +82,10 @@ def build_script(
     voice_bank = None
     if voice_bank_dir is not None:
         voice_bank = init_voice_bank(Path(voice_bank_dir))
+
+    # Non-English pages get the language's narrator unless explicitly overridden
+    if lang != "en" and narrator_voice_id == DEFAULT_NARRATOR_VOICE:
+        narrator_voice_id = DEFAULT_NARRATOR_BY_LANG.get(lang, narrator_voice_id)
     if voice_bank_ids is None:
         if voice_bank:
             voice_bank_ids = list(voice_bank)
@@ -141,7 +147,7 @@ def build_script(
                         attrs = char.voice_attributes
                         voice_type = char.voice_type
                         break
-                char_map[speaker] = match_voice(attrs, voice_type, voice_bank)
+                char_map[speaker] = match_voice(attrs, voice_type, voice_bank, lang=lang)
 
             voice_id = char_map[speaker]
             duration = estimate_duration(dialogue.text, EventKind.dialogue)

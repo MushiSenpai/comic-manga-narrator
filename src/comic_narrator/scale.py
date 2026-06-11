@@ -103,6 +103,7 @@ def narrate_page_resumable(
             page_analysis,
             voice_bank_dir=voice_bank_dir,
             narrator_voice_id=narrator_voice_id,
+            lang=lang,
         )
         script_json.write_text(script.model_dump_json(indent=2))
         cast_json.write_text(cast.model_dump_json(indent=2))

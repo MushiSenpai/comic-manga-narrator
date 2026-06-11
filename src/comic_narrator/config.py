@@ -98,6 +98,12 @@ VOICE_MATCH_RULES = [
 DEFAULT_NARRATOR_VOICE = "_narrator"
 DEFAULT_FALLBACK_VOICE = "male_adult_gruff"
 
+# Language-scoped casting: profiles named {lang}_* are preferred when the
+# page language isn't English; the narrator swaps to the language default.
+DEFAULT_NARRATOR_BY_LANG = {
+    "ja": "ja_m_fourties_e5689a",   # mature male — classic anime narrator register
+}
+
 # ── Minimum Viable Voice Bank ───────────────────────────────────────────
 
 MVP_VOICE_BANK = [

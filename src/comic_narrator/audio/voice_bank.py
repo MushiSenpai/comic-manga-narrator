@@ -79,10 +79,26 @@ def init_voice_bank(voice_bank_dir: Path) -> dict[str, VoiceProfile]:
     return profiles
 
 
+def _score_profile(profile: VoiceProfile, attrs_lower: list[str]) -> int:
+    """Generic attribute scorer for language-scoped banks (no hardcoded ids)."""
+    s = 0
+    if profile.gender and profile.gender in attrs_lower:
+        s += 4
+    if profile.age_approx == "young" and ("young" in attrs_lower or "child" in attrs_lower):
+        s += 2
+    if profile.age_approx == "adult" and ("adult" in attrs_lower or "mature" in attrs_lower or "old" in attrs_lower):
+        s += 2
+    s += len({t.lower() for t in profile.timbre_tags} & set(attrs_lower))
+    if profile.pitch_category and profile.pitch_category in attrs_lower:
+        s += 1
+    return s
+
+
 def match_voice(
     voice_attributes: list[str],
     voice_type: str = "human",
     voice_bank: Optional[dict[str, VoiceProfile]] = None,
+    lang: str = "en",
 ) -> str:
     """Auto-pick a voice_id from voice_attributes.
 
@@ -99,6 +115,17 @@ def match_voice(
         voice_id string.
     """
     attrs_lower = [a.lower() for a in voice_attributes]
+
+    # Language-scoped casting: when the page language isn't English and the
+    # bank has {lang}_* profiles, pick among those by attribute score —
+    # an English reference reading Japanese sounds wrong (cloning follows
+    # the reference's accent).
+    if lang and lang != "en" and voice_bank:
+        prefix = f"{lang}_"
+        candidates = [p for vid, p in voice_bank.items() if vid.startswith(prefix)]
+        if candidates:
+            best = max(candidates, key=lambda p: _score_profile(p, attrs_lower))
+            return best.voice_id
 
     # If non-human, try to find matching voice_type in bank first
     if voice_type != "human" and voice_bank:
