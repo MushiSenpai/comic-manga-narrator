@@ -19,6 +19,23 @@ BREATH_AFTER = {
 }
 
 
+def _duck(
+    bed: AudioSegment,
+    bed_start_sec: float,
+    speech_spans: list[tuple[float, float]],
+    duck_db: float = -5.0,
+    margin_ms: int = 120,
+) -> AudioSegment:
+    """Lower the bed under speech so ambience never fights the voices (E4)."""
+    for es, ee in speech_spans:
+        a = int((es - bed_start_sec) * 1000) - margin_ms
+        b = int((ee - bed_start_sec) * 1000) + margin_ms
+        a, b = max(a, 0), min(b, len(bed))
+        if b - a > 50:
+            bed = bed[:a] + (bed[a:b] + duck_db) + bed[b:]
+    return bed
+
+
 def mix_audio(
     event_files: list[dict],
     ambient_file: Path | None,
@@ -112,6 +129,12 @@ def mix_audio(
         Path(ambient_file) if ambient_file and Path(ambient_file).exists() else None
     )
     if panel_ambients:
+        # Speech spans for ducking: beds drop a further 5dB while anyone talks
+        speech_spans = [
+            (et.start_sec, et.end_sec)
+            for et in event_timings
+            if et.kind in ("dialogue", "caption")
+        ]
         for entry in timing_entries:
             beds = panel_ambients.get(entry.panel_id) or (
                 [fallback_bed] if fallback_bed else []
@@ -126,7 +149,9 @@ def mix_audio(
                 bed = bed + MIX_LEVELS.get("ambient", -18.0)
                 if len(bed) < span_ms:
                     bed = bed * ((span_ms // max(len(bed), 1)) + 1)
-                bed = bed[:span_ms].fade_in(300).fade_out(300)
+                bed = bed[:span_ms]
+                bed = _duck(bed, entry.start_sec, speech_spans)
+                bed = bed.fade_in(300).fade_out(300)
                 timeline = timeline.overlay(
                     bed, position=int(entry.start_sec * 1000)
                 )

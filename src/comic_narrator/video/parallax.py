@@ -34,6 +34,7 @@ def render_parallax_overlay(
     shift_px: int = 12,
     width: int = 1920,
     height: int = 1080,
+    pacing_hint: str = "",
 ) -> Path | None:
     """Render the speaker cutout as a transparent overlay video.
 
@@ -94,6 +95,7 @@ def render_parallax_overlay(
                 speaker_bbox=bbox,
                 zoom_factor=zoom_factor,
                 pan_fraction=pan_fraction,
+                pacing_hint=pacing_hint,
             )
             sx = width / w
             sy = height / h
@@ -108,11 +110,17 @@ def render_parallax_overlay(
             layer = cutout.resize((layer_w, layer_h), Image.LANCZOS)
 
             frame = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-            frame.paste(
-                layer,
-                (round(ocx - layer_w / 2), round(ocy - layer_h / 2)),
-                layer,
-            )
+            lx, ly = round(ocx - layer_w / 2), round(ocy - layer_h / 2)
+
+            # A3: soft drop shadow — the depth cue that makes the cutout read
+            # as a foreground layer instead of a sticker.
+            shadow_alpha = layer.split()[3].point(lambda a: int(a * 0.45))
+            shadow_alpha = shadow_alpha.filter(ImageFilter.GaussianBlur(6))
+            shadow = Image.new("RGBA", layer.size, (0, 0, 0, 255))
+            shadow.putalpha(shadow_alpha)
+            frame.paste(shadow, (lx + 8, ly + 12), shadow)
+
+            frame.paste(layer, (lx, ly), layer)
             proc.stdin.write(frame.tobytes())
     finally:
         proc.stdin.close()

@@ -42,9 +42,12 @@ def render_video(
             duration = entry.end_sec - entry.start_sec
 
             # Find matching panel analysis for speaker bbox (panel coords)
+            # and the panel's pacing hint (drives the A4 camera profile)
             speaker_bbox = None
+            pacing_hint = ""
             for pa in page_analysis.panels_analysis:
                 if pa.panel_id == panel_id:
+                    pacing_hint = pa.pacing_hint
                     for char in pa.characters:
                         if char.is_speaking and char.is_visible and char.bbox:
                             speaker_bbox = (char.bbox.x, char.bbox.y, char.bbox.w, char.bbox.h)
@@ -72,6 +75,7 @@ def render_video(
                 pan_fraction=KEN_BURNS_PAN_FRACTION,
                 width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS,
                 speaker_bbox=speaker_bbox,
+                pacing_hint=pacing_hint,
             )
 
             # Parallax overlay (None when the panel has no usable speaker
@@ -83,6 +87,7 @@ def render_video(
                 pan_fraction=KEN_BURNS_PAN_FRACTION,
                 scale_up=PARALLAX_SCALE, shift_px=PARALLAX_SHIFT,
                 width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS,
+                pacing_hint=pacing_hint,
             )
 
             if plx_out:

@@ -18,6 +18,7 @@ def ken_burns_frame(
     width: int = 1920,
     height: int = 1080,
     speaker_bbox: tuple[int, int, int, int] | None = None,
+    pacing_hint: str = "",
 ):
     """Render the animated background for one panel.
 
@@ -57,6 +58,7 @@ def ken_burns_frame(
                 speaker_bbox=speaker_bbox,
                 zoom_factor=zoom_factor,
                 pan_fraction=pan_fraction,
+                pacing_hint=pacing_hint,
             )
             frame = img.crop(
                 (round(x), round(y), round(x + w), round(y + h))

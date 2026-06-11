@@ -316,3 +316,18 @@ nothing — the same dead-data pattern as `tone`). Shipped in one pass:
   architecture, mixer breath/pause timing, SRT formatting). Test lesson:
   the punch-in clamps at image edges by design — a near-edge bbox in the
   test produced a "failure" that was actually correct behavior.
+
+## Session 4 addendum — voice bank v2 + remaining polish tracks
+
+- **Voice complaint addressed** ("the Indian/European voices"): bank rebuilt
+  from LibriTTS-R dev-clean (CC BY 4.0, no terms gate — downloaded and used
+  the same hour, unlike Common Voice/HF which need account+terms). Speaker
+  selection was metadata-free: autocorrelation median-F0 across all 40
+  readers, picked 7 by pitch ladder (108→237 Hz) + monster pitch-shift.
+  Bank grew 6 → 8 (new: male_adult_warm, female_young_soft) with match
+  rules. Profiles overwrite by name — zero pipeline changes.
+- **E4** ducking: ambient beds drop 5dB under speech (120ms margins).
+- **A3** drop shadow under the speaker cutout (blurred alpha, 8/12px offset).
+- **A4** pacing profiles in camera.py: action_peak punches at 50% with 3px
+  shake, dramatic_reveal creeps the full clip, quick_transition arrives early.
+- Mirror note: us.openslr.org fails TLS (curl exit 60); openslr.elda.org works.

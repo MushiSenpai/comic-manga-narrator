@@ -1,18 +1,25 @@
 # Voice Bank — sources, licensing, and how to add languages
 
-## Current bank (installed 2026-06-11)
+## Current bank (rebuilt 2026-06-11 from LibriTTS-R)
 
-Six archetypes cloned from **CMU ARCTIC** (festvox.org, unrestricted
-BSD-style license, studio quality, English):
+Eight archetypes cloned from **LibriTTS-R** dev-clean (CC BY 4.0, restored
+audiobook quality, US-neutral accents — replaced the CMU ARCTIC picks after
+the Scottish/accented speakers read as off). Speakers were selected by
+autocorrelation pitch analysis across all 40 dev-clean readers:
 
-| Profile | Source speaker | Character |
-|---|---|---|
-| `_narrator` | rms | mature male, warm |
-| `male_young_bright` | bdl | energetic young male |
-| `male_adult_gruff` | awb | Scottish male, rough |
-| `female_young_bright` | clb | bright female |
-| `female_adult_warm` | slt | warm female |
-| `monster_deep` | rms, pitched −28% | ffmpeg `asetrate` trick |
+| Profile | Speaker | Median F0 | Character |
+|---|---|---|---|
+| `_narrator` | 2428 | 122 Hz | warm mid-deep male narrator |
+| `male_adult_gruff` | 2803 | 108 Hz | deepest male |
+| `male_adult_warm` | 3752 | 130 Hz | calm adult male |
+| `male_young_bright` | 3170 | 146 Hz | higher energetic male |
+| `female_adult_warm` | 6313 | 174 Hz | warm low female |
+| `female_young_soft` | 7976 | 208 Hz | gentle mid female |
+| `female_young_bright` | 2035 | 237 Hz | brightest female |
+| `monster_deep` | 2803, pitched −28% | — | ffmpeg `asetrate` trick |
+
+(The CMU ARCTIC section below is kept for provenance; those profiles were
+overwritten in place — same names, zero code changes.)
 
 Profiles live in `/data/ai/02-models/audio/voices/{name}.wav`; the TTS worker
 selects them by name. Anything matching a `voice_id` is picked automatically.

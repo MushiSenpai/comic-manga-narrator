@@ -33,8 +33,8 @@ unused.
 |---|---|---|---|
 | A1 | ✅ **Panel-space framing** | Ken Burns should frame the *panel*, zooming from panel bounds — not drift across the whole page. `ken_burns.py` takes the panel bbox as start/end rect. | Each panel clip shows that panel filling the frame. |
 | A2 | ✅ **Speaker punch-in** | During a dialogue event, the camera eases toward the speaker bbox (pan+zoom to ~1.3-1.6×, ease-in-out cubic); pulls back to panel frame on pause events. Requires per-event (not per-panel) camera keyframes from `timing.json`. | Watching the manga page: camera visibly moves to Luffy when he speaks. |
-| A3 | **Speaker pop v2** | Parallax overlay scales 1.15-1.25× with a soft drop shadow and 2-3px animated separation, eased — not a constant 1.08 sticker. Optionally Depth Anything V2 (`PARALLAX_METHOD="depth_anything_v2"` placeholder exists) for true background displacement. | Speaker reads as a foreground layer in motion, not a static cutout. |
-| A4 | **Pacing-driven dynamics** | `pacing_hint` → motion profile: `action_peak` = fast push + 2-4px shake on SFX onset; `dramatic_reveal` = slow 8s creep; `quick_transition` = whip-pan to next panel. | The FWAP flag panel feels different from the harbor establishing shot. |
+| A3 | ✅(shadow) **Speaker pop v2** | Parallax overlay scales 1.15-1.25× with a soft drop shadow and 2-3px animated separation, eased — not a constant 1.08 sticker. Optionally Depth Anything V2 (`PARALLAX_METHOD="depth_anything_v2"` placeholder exists) for true background displacement. | Speaker reads as a foreground layer in motion, not a static cutout. |
+| A4 | ✅ **Pacing-driven dynamics** | `pacing_hint` → motion profile: `action_peak` = fast push + 2-4px shake on SFX onset; `dramatic_reveal` = slow 8s creep; `quick_transition` = whip-pan to next panel. | The FWAP flag panel feels different from the harbor establishing shot. |
 | A5 | **Directional transitions** | Replace hard concat cuts with slide/whip in reading direction (RTL for manga), 200-300ms. Needs xfade-based concat instead of `-c copy`. | No hard cut between panels 1→2→3. |
 
 Effort: A1+A2 are the big wins and one focused session (camera math +
@@ -79,7 +79,7 @@ birds should sound like a harbor with gulls.
 | E1 | Visual ambient cues | ✅ Pass 2 derives cues from artwork (verified: harbor page → wind/birds/sea/waves/seagulls with zero ambient text in bubbles); prompt now demands a forensic sound-source inventory (2-5 cues per panel) |
 | E2 | **Per-panel ambient beds** | ✅ 2026-06-11: each panel gets up to 2 layered beds over its own timeline span (300ms fades), replacing the single flattened page bed; Freesound ambient searches now target loopable 10-120s recordings, not SFX hits |
 | E3 | Visually-implied SFX events | ⬜ a drawn flapping flag with no "FWAP" text should still emit a one-shot SFX; needs a `visual_sfx[]` field in Pass 2 + event plumbing |
-| E4 | Dialogue ducking | ⬜ lower ambient a further 4-6dB under dialogue/caption spans (pydub gain automation) so beds never fight the voices |
+| E4 | Dialogue ducking | ✅ 2026-06-11: beds drop 5dB under speech (120ms margins); lower ambient a further 4-6dB under dialogue/caption spans (pydub gain automation) so beds never fight the voices |
 | E5 | Curated `sfx_map.yaml` growth | ⬜ pin known-good Freesound IDs for the common cues (waves, wind, crowd, rain, seagulls) — text search top-hit is a lottery |
 
 ## Track D — Ops / scale
