@@ -53,6 +53,7 @@ MIX_LEVELS = {
 
 # ── Video (Phase 4) ─────────────────────────────────────────────────────
 
+PAGE_OVERVIEW_SEC = 3.0   # establishing shot: full page before panel-by-panel
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 VIDEO_FPS = 24

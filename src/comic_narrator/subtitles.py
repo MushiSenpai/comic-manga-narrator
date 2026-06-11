@@ -50,6 +50,7 @@ def write_book_srt(
     page_timing_jsons: list[Path],
     page_durations_sec: list[float],
     srt_path: Path,
+    per_page_offset_sec: float = 0.0,
 ) -> Path:
     """Merge per-page timings into one chapter .srt with cumulative offsets.
 
@@ -68,8 +69,8 @@ def write_book_srt(
                 idx += 1
                 blocks.append(
                     f"{idx}\n"
-                    f"{_fmt_ts(e['start_sec'] + offset)} --> "
-                    f"{_fmt_ts(e['end_sec'] + offset)}\n"
+                    f"{_fmt_ts(e['start_sec'] + offset + per_page_offset_sec)} --> "
+                    f"{_fmt_ts(e['end_sec'] + offset + per_page_offset_sec)}\n"
                     f"{e['text']}\n"
                 )
         offset += dur

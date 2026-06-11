@@ -149,8 +149,9 @@ def main() -> None:
 
     # Subtitles (C3): always emit a sidecar .srt next to the output
     from comic_narrator.subtitles import write_srt
+    from comic_narrator.config import PAGE_OVERVIEW_SEC
     srt_path = output_path.with_suffix(".srt")
-    write_srt(timing, srt_path)
+    write_srt(timing, srt_path, offset_sec=PAGE_OVERVIEW_SEC)
     print(f"  Subtitles: {srt_path}")
 
     # ── Phase 4: Video ───────────────────────────────────────────

@@ -5,13 +5,13 @@ import tempfile
 from pathlib import Path
 
 from comic_narrator.schemas import PageAnalysis, Timing
-from comic_narrator.video.ken_burns import ken_burns_frame
+from comic_narrator.video.ken_burns import ken_burns_frame, render_page_overview
 from comic_narrator.video.parallax import render_parallax_overlay
 from comic_narrator.video.compose import compose_video, concat_videos
 from comic_narrator.config import (
     KEN_BURNS_ZOOM_FACTOR, KEN_BURNS_PAN_FRACTION,
     PARALLAX_SCALE, PARALLAX_SHIFT,
-    VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_FPS,
+    VIDEO_WIDTH, VIDEO_HEIGHT, VIDEO_FPS, PAGE_OVERVIEW_SEC,
 )
 
 
@@ -37,6 +37,16 @@ def render_video(
         tmp = Path(tmpdir)
 
         panel_clips: list[Path] = []
+
+        # Establishing shot: show the whole page before going panel by panel
+        if PAGE_OVERVIEW_SEC > 0 and timing.entries:
+            overview = tmp / "overview.mp4"
+            render_page_overview(
+                page_image, overview, PAGE_OVERVIEW_SEC,
+                fps=VIDEO_FPS, width=VIDEO_WIDTH, height=VIDEO_HEIGHT,
+            )
+            panel_clips.append(overview)
+
         for entry in timing.entries:
             panel_id = entry.panel_id
             duration = entry.end_sec - entry.start_sec

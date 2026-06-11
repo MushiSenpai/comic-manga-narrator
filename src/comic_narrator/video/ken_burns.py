@@ -70,3 +70,56 @@ def ken_burns_frame(
         proc.wait()
     if proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd, stderr=stderr)
+
+
+def render_page_overview(
+    img_path: Path,
+    output_path: Path,
+    duration_sec: float,
+    fps: int = 24,
+    width: int = 1920,
+    height: int = 1080,
+):
+    """Establishing shot: the WHOLE page fit to frame (pillarboxed on black)
+    with a slow push-in, before the camera goes panel by panel. Carries a
+    silent mono AAC track so concat sees uniform streams."""
+    from PIL import Image
+
+    page = Image.open(img_path).convert("RGB")
+    pw, ph = page.size
+    fit = min(width / pw, height / ph)
+    num_frames = max(1, round(duration_sec * fps))
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "rawvideo",
+        "-pix_fmt", "rgb24",
+        "-s", f"{width}x{height}",
+        "-r", str(fps),
+        "-i", "-",
+        "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
+        "-frames:v", str(num_frames),
+        "-shortest",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k",
+        str(output_path),
+    ]
+    proc = subprocess.Popen(
+        cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
+    )
+    try:
+        for n in range(num_frames):
+            t = n / max(num_frames - 1, 1)
+            zoom = 1.0 + 0.04 * t  # slow push
+            sw, sh = round(pw * fit * zoom), round(ph * fit * zoom)
+            scaled = page.resize((sw, sh), Image.LANCZOS)
+            frame = Image.new("RGB", (width, height), (0, 0, 0))
+            frame.paste(scaled, ((width - sw) // 2, (height - sh) // 2))
+            proc.stdin.write(frame.tobytes())
+    finally:
+        proc.stdin.close()
+        stderr = proc.stderr.read()
+        proc.wait()
+    if proc.returncode != 0:
+        raise subprocess.CalledProcessError(proc.returncode, cmd, stderr=stderr)

@@ -120,7 +120,8 @@ def narrate_page_resumable(
 
     # Subtitles sidecar for this page (merged per chapter by narrate_book)
     from comic_narrator.subtitles import write_srt
-    write_srt(timing, work_dir / "page.srt")
+    from comic_narrator.config import PAGE_OVERVIEW_SEC
+    write_srt(timing, work_dir / "page.srt", offset_sec=PAGE_OVERVIEW_SEC)
 
     # Phase 4 — video
     render_video(page_image, page_analysis, timing, narration, page_mp4)
@@ -198,7 +199,9 @@ def narrate_book(
         from comic_narrator.subtitles import write_book_srt, video_duration
         timing_jsons = [work_root / f"page_{p:04d}" / "timing.json" for p in chapter]
         durations = [video_duration(c) for c in clips]
-        write_book_srt(timing_jsons, durations, chapter_out.with_suffix(".srt"))
+        from comic_narrator.config import PAGE_OVERVIEW_SEC
+        write_book_srt(timing_jsons, durations, chapter_out.with_suffix(".srt"),
+                       per_page_offset_sec=PAGE_OVERVIEW_SEC)
 
         outputs.append(chapter_out)
         print(f"Chapter {ci}: pages {chapter[0]}-{chapter[-1]} → {chapter_out} (+ .srt)")
