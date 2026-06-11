@@ -31,8 +31,8 @@ unused.
 
 | # | Item | Approach | Acceptance test |
 |---|---|---|---|
-| A1 | **Panel-space framing** | Ken Burns should frame the *panel*, zooming from panel bounds — not drift across the whole page. `ken_burns.py` takes the panel bbox as start/end rect. | Each panel clip shows that panel filling the frame. |
-| A2 | **Speaker punch-in** | During a dialogue event, the camera eases toward the speaker bbox (pan+zoom to ~1.3-1.6×, ease-in-out cubic); pulls back to panel frame on pause events. Requires per-event (not per-panel) camera keyframes from `timing.json`. | Watching the manga page: camera visibly moves to Luffy when he speaks. |
+| A1 | ✅ **Panel-space framing** | Ken Burns should frame the *panel*, zooming from panel bounds — not drift across the whole page. `ken_burns.py` takes the panel bbox as start/end rect. | Each panel clip shows that panel filling the frame. |
+| A2 | ✅ **Speaker punch-in** | During a dialogue event, the camera eases toward the speaker bbox (pan+zoom to ~1.3-1.6×, ease-in-out cubic); pulls back to panel frame on pause events. Requires per-event (not per-panel) camera keyframes from `timing.json`. | Watching the manga page: camera visibly moves to Luffy when he speaks. |
 | A3 | **Speaker pop v2** | Parallax overlay scales 1.15-1.25× with a soft drop shadow and 2-3px animated separation, eased — not a constant 1.08 sticker. Optionally Depth Anything V2 (`PARALLAX_METHOD="depth_anything_v2"` placeholder exists) for true background displacement. | Speaker reads as a foreground layer in motion, not a static cutout. |
 | A4 | **Pacing-driven dynamics** | `pacing_hint` → motion profile: `action_peak` = fast push + 2-4px shake on SFX onset; `dramatic_reveal` = slow 8s creep; `quick_transition` = whip-pan to next panel. | The FWAP flag panel feels different from the harbor establishing shot. |
 | A5 | **Directional transitions** | Replace hard concat cuts with slide/whip in reading direction (RTL for manga), 200-300ms. Needs xfade-based concat instead of `-c copy`. | No hard cut between panels 1→2→3. |
@@ -50,7 +50,7 @@ both currently dropped on the floor in Phase 3.
 
 | # | Item | Approach | Acceptance test |
 |---|---|---|---|
-| B1 | **Tone → delivery params** | Map `tone` to Fish Speech params per request: shouting → speed 1.15 + gain; whispering → speed 0.9 − gain; plumb a `speed`/params dict through the gateway TTS job (worker already accepts `speed`). | "HEY, LUFFY!" sounds shouted; a whisper sounds whispered. |
+| B1 | ✅ **Tone → delivery params** | Map `tone` to Fish Speech params per request: shouting → speed 1.15 + gain; whispering → speed 0.9 − gain; plumb a `speed`/params dict through the gateway TTS job (worker already accepts `speed`). | "HEY, LUFFY!" sounds shouted; a whisper sounds whispered. |
 | B2 | **Emotion-variant references** | Per archetype, multiple reference clips: `male_young_bright/angry.wav`, `.../sad.wav`... Fish Speech cloning follows the reference's affect — the cheapest "emotion control" there is. Select by `dominant_emotion` with neutral fallback. Mine emotive segments from LibriTTS-R (CC BY 4.0 audiobooks contain acted emotion); most dedicated emotion corpora (RAVDESS, ESD) are NC-licensed — rejected. | Same character angry vs calm produces audibly different reads. |
 | B3 | **Book-level cast persistence** | `scale.py` re-resolves voices per page; a character must keep one voice across a whole book (persist `cast.json` label→voice map in the work root, fuzzy-match labels across pages via Pass 3). | Luffy keeps his voice from page 1 to page 190. |
 | B4 | **SFX vocalization choice** | "FWAP" is currently looked up on Freesound; some SFX read better *spoken* dramatically (Japanese manga tradition). Config flag per-SFX-class. | A/B render both modes. |
@@ -62,9 +62,9 @@ English, or both).
 
 | # | Item | Approach | Acceptance test |
 |---|---|---|---|
-| C1 | **Keep source language** | `--lang ja` currently does nothing real. Pass 2 prompt: "transcribe dialogue in its original language, do not translate". Nemotron-3-Nano-Omni reads Japanese natively. | Raw Japanese page → script.json with Japanese text. |
+| C1 | ✅ **Keep source language** | `--lang ja` currently does nothing real. Pass 2 prompt: "transcribe dialogue in its original language, do not translate". Nemotron-3-Nano-Omni reads Japanese natively. | Raw Japanese page → script.json with Japanese text. |
 | C2 | **Japanese TTS voices** | Fish Speech 1.5 is natively multilingual (ja is a headline language). Needs *Japanese reference clips* — a cloned English voice reading Japanese sounds wrong. Source: **Common Voice Japanese (CC0)** — see [VOICES.md](VOICES.md) for the concrete download/curation procedure. | Japanese line synthesized with natural ja prosody. |
-| C3 | **Subtitle emission** | `script.json` events + `timing.json` already contain everything an `.srt` needs (per-event text + start/end). Emit `output.srt` always; `--burn-subs` runs the ffmpeg `subtitles` filter, default is soft-mux (`mov_text`). | MP4 plays with toggleable subs in VLC. |
+| C3 | ✅ **Subtitle emission** | `script.json` events + `timing.json` already contain everything an `.srt` needs (per-event text + start/end). Emit `output.srt` always; `--burn-subs` runs the ffmpeg `subtitles` filter, default is soft-mux (`mov_text`). | MP4 plays with toggleable subs in VLC. |
 | C4 | **Translated subtitle track** | During Phase 2, ask Nemotron for a translation per event (`text_translated`); emit a second `.srt`. T1-sovereign: translation stays on local Nemotron. | ja audio + en subtitles on one render. |
 | C5 | **Vertical-text OCR validation** | Japanese manga uses vertical RTL text in bubbles; validate Pass 2 on raw (untranslated) scans, fix prompts if reading order inside bubbles scrambles. | 3 raw Japanese pages transcribed correctly. |
 

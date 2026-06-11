@@ -11,6 +11,34 @@ from comic_narrator.audio.mixer import mix_audio
 from comic_narrator.config import VOICE_BANK_DIR, SFX_CACHE_DIR, SFX_MAP_PATH, PACING
 
 
+# B1 — tone → (speed multiplier, gain dB). Pass 2 emits tone per dialogue;
+# Fish Speech follows speed, the mixer applies gain.
+TONE_DELIVERY = {
+    "shouting":   (1.10, 4.0),
+    "loud":       (1.05, 3.0),
+    "whispering": (0.88, -6.0),
+    "nervous":    (1.06, 0.0),
+    "dismissive": (0.95, -1.0),
+    "confident":  (1.00, 1.0),
+}
+
+# Caption-triggered one-shot cues: when narration TEXT names an audible
+# phenomenon ("THE WIND BLOWS FROM THE EAST"), play the sound right after
+# the line — "wind blowing... woooosh".
+CAPTION_CUES = {
+    "wind": "wind gust",
+    "waves": "wave crash",
+    "rain": "rain falling",
+    "thunder": "thunder clap",
+    "seagull": "seagull cry",
+    "seagulls": "seagull cry",
+    "birds": "birds chirping",
+    "crowd": "crowd murmur",
+    "explosion": "explosion",
+    "storm": "storm wind",
+}
+
+
 def render_audio(
     script: Script,
     voice_bank_dir: Path = VOICE_BANK_DIR,
@@ -35,6 +63,7 @@ def render_audio(
             "text": e.text,
             "voice_id": e.voice_id,
             "kind": e.kind.value,
+            "tone": e.tone,
             "panel_id": e.panel_id,
             "pause_override": e.pause_override,
         }
@@ -45,9 +74,10 @@ def render_audio(
     event_files: list[dict] = []
     for ev in tts_events:
         out_wav = wav_dir / f"{ev['event_id']}.wav"
+        speed, gain_db = TONE_DELIVERY.get(ev.get("tone", ""), (1.0, 0.0))
         try:
-            tts.synthesize(ev["text"], ev["voice_id"], out_wav)
-            event_files.append({**ev, "wav_path": out_wav})
+            tts.synthesize(ev["text"], ev["voice_id"], out_wav, speed=speed)
+            event_files.append({**ev, "wav_path": out_wav, "gain_db": gain_db})
         except Exception as e:
             print(f"  [WARN] TTS failed for {ev['event_id']}: {e}")
 
@@ -65,6 +95,33 @@ def render_audio(
                         "kind": "sfx",
                         "pause_override": e.pause_override,
                     })
+
+    # Caption-triggered one-shot cues ("THE WIND BLOWS..." → woooosh).
+    # Inserted immediately after the caption that names the phenomenon, a
+    # touch louder than the ambient bed so it reads as a cue, not texture.
+    if freesound_api_key:
+        import re as _re
+        sfx_client = FreesoundClient(freesound_api_key, sfx_cache_dir, sfx_map_path)
+        cued: list[dict] = []
+        for ef in event_files:
+            cued.append(ef)
+            if ef.get("kind") != "caption":
+                continue
+            words = set(_re.findall(r"[a-z']+", ef.get("text", "").lower()))
+            for word, query in CAPTION_CUES.items():
+                if word in words:
+                    cue_path = sfx_client.resolve_sfx(query)
+                    if cue_path:
+                        cued.append({
+                            "event_id": f"{ef['event_id']}_cue_{word}",
+                            "panel_id": ef["panel_id"],
+                            "wav_path": cue_path,
+                            "kind": "sfx",
+                            "gain_db": 3.0,
+                            "pause_override": None,
+                        })
+                    break  # one cue per caption
+        event_files = cued
 
     # Resolve ambient beds PER PANEL. The cues come from Pass 2 reading the
     # artwork itself (visible birds → gull cries, ship on water → waves) —
@@ -121,11 +178,18 @@ def render_audio(
         panel_order.setdefault(e.panel_id, i)
     event_files.sort(key=lambda ef: panel_order.get(ef["panel_id"], 10_000))
 
+    # Pacing-aware inter-panel pauses from the script's pause events
+    panel_pauses: dict[int, float] = {}
+    for e in script.events:
+        if e.kind.value == "pause":
+            panel_pauses[e.panel_id] = e.pause_override or e.duration_sec or 0.5
+
     # Mix
     narration_path = output_dir / "narration.wav"
     timing = mix_audio(
         event_files, ambient_file, narration_path,
         panel_ambients=panel_ambients,
+        panel_pauses=panel_pauses,
     )
 
     # Write timing.json

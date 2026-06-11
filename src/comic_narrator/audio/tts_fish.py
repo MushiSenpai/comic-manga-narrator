@@ -61,6 +61,7 @@ class FishSpeechTTS:
         text: str,
         voice_id: str,
         output_path: Path,
+        speed: float = 1.0,
     ) -> float:
         """Submit TTS job, poll until finished, copy WAV. Returns duration_sec."""
         if not self.health_check():
@@ -72,6 +73,7 @@ class FishSpeechTTS:
                 "job_type": "tts",
                 "text": text,
                 "voice_profile": self.resolve_profile(voice_id),
+                "speed": str(speed),
             },
             timeout=30,
         )

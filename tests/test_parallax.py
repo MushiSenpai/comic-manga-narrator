@@ -1,5 +1,5 @@
-"""Tests for the 2.5D parallax overlay: alpha encoding, Ken Burns anchoring,
-panel→page bbox mapping, and compositing through compose_video."""
+"""Tests for the panel camera + 2.5D parallax overlay: trajectory invariants,
+alpha encoding, background/overlay anchoring, and compositing."""
 
 import json
 import subprocess
@@ -10,15 +10,17 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from comic_narrator.video.camera import camera_rect
 from comic_narrator.video.ken_burns import ken_burns_frame
-from comic_narrator.video.parallax import render_parallax_overlay, _ken_burns_state
+from comic_narrator.video.parallax import render_parallax_overlay
 from comic_narrator.video.compose import compose_video
 
+# The fixture page doubles as a "panel" image for unit tests — the camera
+# code only cares that bbox coords share the image's coordinate space.
 TEST_PAGE = Path(__file__).parent / "fixtures" / "test_page.jpg"
 DUR = 1.5
 FPS = 24
-# Mid-page bbox in page coords on the 1200x1800 fixture
-BBOX = (300, 500, 400, 500)
+BBOX = (300, 500, 400, 500)  # speaker bbox on the 1200x1800 fixture
 
 
 def _silent_wav(path: Path, seconds: float = 3.0, rate: int = 44100) -> Path:
@@ -48,13 +50,48 @@ def _grab_luma(video: Path, t: float, out_dir: Path) -> np.ndarray:
     return np.asarray(Image.open(png).convert("L"), dtype=np.float64)
 
 
+# ── camera_rect invariants ──────────────────────────────────────────────
+
+def test_camera_rect_stays_inside_image_and_keeps_aspect():
+    iw, ih = 1200, 1800
+    for bbox in (None, BBOX, (0, 0, 50, 60), (1100, 1700, 100, 100)):
+        for n in (0, 10, 35):
+            x, y, w, h = camera_rect(n, 36, iw, ih, speaker_bbox=bbox)
+            assert x >= -1e-6 and y >= -1e-6
+            assert x + w <= iw + 1e-6 and y + h <= ih + 1e-6
+            assert abs((w / h) - 16 / 9) < 1e-6
+
+
+def test_camera_punch_in_ends_on_speaker():
+    iw, ih = 1200, 1800
+    # Small, central speaker: the target rect fits without edge clamping
+    bbox = (500, 800, 200, 220)
+    x0, y0, w0, h0 = camera_rect(0, 36, iw, ih, speaker_bbox=bbox)
+    x1, y1, w1, h1 = camera_rect(35, 36, iw, ih, speaker_bbox=bbox)
+    # Camera zoomed in...
+    assert w1 < w0 and h1 < h0
+    # ...and the speaker center sits at the final frame center
+    scx, scy = bbox[0] + bbox[2] / 2, bbox[1] + bbox[3] / 2
+    assert abs((x1 + w1 / 2) - scx) < 2.0
+    assert abs((y1 + h1 / 2) - scy) < 2.0
+
+
+def test_camera_no_speaker_gentle_zoom():
+    iw, ih = 1200, 1800
+    x0, y0, w0, h0 = camera_rect(0, 36, iw, ih, zoom_factor=1.05)
+    x1, y1, w1, h1 = camera_rect(35, 36, iw, ih, zoom_factor=1.05)
+    assert w0 / w1 == pytest.approx(1.05, abs=0.01)
+
+
+# ── overlay behavior ────────────────────────────────────────────────────
+
 def test_no_bbox_returns_none(tmp_path):
     out = render_parallax_overlay(TEST_PAGE, None, tmp_path / "p.mov", DUR)
     assert out is None
 
 
 def test_degenerate_bbox_returns_none(tmp_path):
-    # Entirely outside the 1200x1800 page
+    # Entirely outside the 1200x1800 image
     out = render_parallax_overlay(TEST_PAGE, (5000, 5000, 100, 100), tmp_path / "p.mov", DUR)
     assert out is None
 
@@ -64,17 +101,16 @@ def test_overlay_is_prores_4444_with_alpha(tmp_path):
     assert out is not None and out.exists()
     stream = _probe_video(out)["streams"][0]
     assert stream["codec_name"] == "prores"
-    # ProRes 4444 decodes as 12-bit; what matters is the alpha plane
     assert stream["pix_fmt"].startswith("yuva444p"), "overlay must carry an alpha plane"
     assert int(stream["nb_read_frames"]) == round(DUR * FPS)
 
 
-def test_overlay_anchored_to_ken_burns(tmp_path):
+def test_overlay_anchored_to_background(tmp_path):
     """With no pop (scale_up=1, shift=0) the cutout must land exactly on its
-    own background pixels: any systematic shift means the zoompan replication
-    in _ken_burns_state has drifted from ken_burns.py."""
+    own background pixels. Background and overlay share camera_rect, so a
+    misalignment means the two renderers disagree on rounding/resampling."""
     kb = tmp_path / "kb.mp4"
-    ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS)
+    ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS, speaker_bbox=BBOX)
     plx = render_parallax_overlay(
         TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS, scale_up=1.0, shift_px=0
     )
@@ -85,17 +121,20 @@ def test_overlay_anchored_to_ken_burns(tmp_path):
     compose_video(kb, None, wav, out_without)
 
     t = DUR / 2
+    num_frames = round(DUR * FPS)
     n = round(t * FPS)
     iw, ih = Image.open(TEST_PAGE).size
-    crop_w, crop_h, kx, ky = _ken_burns_state(n, FPS, iw, ih, 1.05, 0.05)
-    sx, sy = 1920 / crop_w, 1080 / crop_h
+    x, y, w, h = camera_rect(n, num_frames, iw, ih, speaker_bbox=BBOX)
+    sx, sy = 1920 / w, 1080 / h
     bx, by, bw, bh = BBOX
-    rx0, ry0 = int((bx - kx) * sx), int((by - ky) * sy)
-    rx1, ry1 = int((bx + bw - kx) * sx), int((by + bh - ky) * sy)
+    rx0, ry0 = int((bx - x) * sx), int((by - y) * sy)
+    rx1, ry1 = int((bx + bw - x) * sx), int((by + bh - y) * sy)
+    rx0, ry0 = max(rx0, 0), max(ry0, 0)
+    rx1, ry1 = min(rx1, 1920), min(ry1, 1080)
 
     a = _grab_luma(out_with, t, tmp_path)
     b = _grab_luma(out_without, t, tmp_path)
-    pad = 20  # stay clear of the feathered edge
+    pad = 25  # stay clear of the feathered edge
     region_a = a[ry0 + pad:ry1 - pad, rx0 + pad:rx1 - pad]
 
     diffs = {}
@@ -105,16 +144,15 @@ def test_overlay_anchored_to_ken_burns(tmp_path):
             diffs[(dx, dy)] = np.abs(region_a - region_b).mean()
     best = min(diffs, key=diffs.get)
     assert best == (0, 0), f"overlay misaligned: best shift {best}, diffs {diffs}"
-    # Residual is resampling-kernel + codec noise only
     assert diffs[(0, 0)] < 15, f"overlay region diff too high: {diffs[(0, 0)]:.2f}"
 
 
 def test_compose_with_overlay_changes_output(tmp_path):
     """With the real pop params the speaker region must visibly differ from
-    the plain Ken Burns render — proves the alpha intermediate decodes and
+    the plain background — proves the alpha intermediate decodes and
     composites through compose_video's overlay filter."""
     kb = tmp_path / "kb.mp4"
-    ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS)
+    ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS, speaker_bbox=BBOX)
     plx = render_parallax_overlay(
         TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS, scale_up=1.08, shift_px=12
     )
@@ -133,8 +171,8 @@ def test_compose_with_overlay_changes_output(tmp_path):
 
 
 def test_render_video_end_to_end(tmp_path):
-    """Full Phase 4 path with a panel-relative speaker bbox: exercises the
-    panel→page mapping against panels_layout in render_video.py."""
+    """Full Phase 4 path: render_video crops the panel from the page and the
+    camera punches in toward the panel-relative speaker bbox."""
     from comic_narrator.render_video import render_video
     from comic_narrator.schemas import (
         BBox, Character, PageAnalysis, PagePanels, Panel, PanelAnalysis,
@@ -148,7 +186,6 @@ def test_render_video_end_to_end(tmp_path):
         ]),
         panels_analysis=[
             PanelAnalysis(panel_id=1, characters=[
-                # Panel-relative: maps to page-space (400, 500, 300, 400)
                 Character(label="hero", is_speaking=True, is_visible=True,
                           bbox=BBox(x=300, y=300, w=300, h=400)),
             ]),

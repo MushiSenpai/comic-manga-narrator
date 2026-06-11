@@ -17,6 +17,7 @@ from comic_narrator.vision.nemotron_client import NemotronClient
 def parse_page(
     image_path: Path,
     layout: str = "manga",
+    lang: str = "en",
     voice_bank_ids: Optional[list[str]] = None,
     prior_cast: Optional[Cast] = None,
     panels_override: Optional[PagePanels] = None,
@@ -81,7 +82,7 @@ def parse_page(
             panel_img_path = extract_panel_image(image_path, panel.bbox, tmp)
 
             try:
-                analysis = client.pass2_analyze_panel(panel_img_path, panel.id)
+                analysis = client.pass2_analyze_panel(panel_img_path, panel.id, lang=lang)
             except Exception as e:
                 # Log error and create stub analysis so pipeline doesn't halt
                 from comic_narrator.schemas import PanelAnalysis

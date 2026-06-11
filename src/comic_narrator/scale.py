@@ -62,6 +62,7 @@ def narrate_page_resumable(
     narrator_voice_id: str,
     freesound_api_key: str = "",
     vision_only: bool = False,
+    lang: str = "en",
 ) -> Path | None:
     """Run phases 1-4 for one page, skipping any phase whose output exists.
 
@@ -91,7 +92,7 @@ def narrate_page_resumable(
     if page_json.exists():
         page_analysis = PageAnalysis(**json.loads(page_json.read_text()))
     else:
-        page_analysis = parse_page(page_image, layout=layout)
+        page_analysis = parse_page(page_image, layout=layout, lang=lang)
         page_json.write_text(page_analysis.model_dump_json(indent=2))
 
     # Phase 2 — script
@@ -117,6 +118,10 @@ def narrate_page_resumable(
         output_dir=work_dir,
     )
 
+    # Subtitles sidecar for this page (merged per chapter by narrate_book)
+    from comic_narrator.subtitles import write_srt
+    write_srt(timing, work_dir / "page.srt")
+
     # Phase 4 — video
     render_video(page_image, page_analysis, timing, narration, page_mp4)
     return page_mp4
@@ -131,6 +136,7 @@ def narrate_book(
     narrator_voice_id: str = "_narrator",
     freesound_api_key: str = "",
     vision_only: bool = False,
+    lang: str = "en",
     progress_callback=None,
 ) -> list[Path]:
     """PDF book → one narrated MP4 per chapter.
@@ -162,7 +168,7 @@ def narrate_book(
         video = narrate_page_resumable(
             page_image, work_dir, layout,
             voice_bank_dir, narrator_voice_id, freesound_api_key,
-            vision_only=vision_only,
+            vision_only=vision_only, lang=lang,
         )
         if video is not None:
             page_videos.append(video)
@@ -188,7 +194,13 @@ def narrate_book(
             shutil.copy(clips[0], chapter_out)
         else:
             concat_videos(clips, chapter_out)
+        # Chapter subtitles: merge page .srt timings with cumulative offsets
+        from comic_narrator.subtitles import write_book_srt, video_duration
+        timing_jsons = [work_root / f"page_{p:04d}" / "timing.json" for p in chapter]
+        durations = [video_duration(c) for c in clips]
+        write_book_srt(timing_jsons, durations, chapter_out.with_suffix(".srt"))
+
         outputs.append(chapter_out)
-        print(f"Chapter {ci}: pages {chapter[0]}-{chapter[-1]} → {chapter_out}")
+        print(f"Chapter {ci}: pages {chapter[0]}-{chapter[-1]} → {chapter_out} (+ .srt)")
 
     return outputs

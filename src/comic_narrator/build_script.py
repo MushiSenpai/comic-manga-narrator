@@ -150,6 +150,7 @@ def build_script(
                 panel_id=panel.panel_id,
                 kind=EventKind.dialogue,
                 text=dialogue.text,
+                tone=dialogue.tone,
                 speaker_label=speaker,
                 voice_id=voice_id,
                 duration_sec=duration,

@@ -77,6 +77,7 @@ def main() -> None:
         outputs = narrate_book(
             input_path, output_path,
             layout=args.layout,
+            lang=args.lang,
             chapter_pages=chapter_pages,
             voice_bank_dir=voice_bank,
             narrator_voice_id=args.narrator_voice,
@@ -94,7 +95,7 @@ def main() -> None:
             panels_override = PagePanels(**panels_data)
 
         page_analysis = parse_page(
-            input_path, layout=args.layout,
+            input_path, layout=args.layout, lang=args.lang,
             panels_override=panels_override,
         )
         if args.keep_intermediates:
@@ -145,6 +146,12 @@ def main() -> None:
         freesound_api_key=freesound_key,
     )
     print(f"  Audio: {narration_wav} ({timing.total_duration_sec:.1f}s)")
+
+    # Subtitles (C3): always emit a sidecar .srt next to the output
+    from comic_narrator.subtitles import write_srt
+    srt_path = output_path.with_suffix(".srt")
+    write_srt(timing, srt_path)
+    print(f"  Subtitles: {srt_path}")
 
     # ── Phase 4: Video ───────────────────────────────────────────
     from comic_narrator.render_video import render_video

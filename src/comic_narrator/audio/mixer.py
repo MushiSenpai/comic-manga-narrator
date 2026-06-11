@@ -5,8 +5,18 @@ from __future__ import annotations
 from pathlib import Path
 from pydub import AudioSegment
 
-from comic_narrator.config import MIX_LEVELS
-from comic_narrator.schemas import Timing, TimingEntry
+from comic_narrator.config import MIX_LEVELS, PACING
+from comic_narrator.schemas import EventTiming, Timing, TimingEntry
+
+# Breathing room appended after each event, by kind. Wall-to-wall dialogue
+# reads as rushed — these gaps are the difference between a slideshow and a
+# narration (PACING values come from config).
+BREATH_AFTER = {
+    "dialogue": PACING["dialogue_breath"],
+    "caption": PACING["caption_land"],
+    "sfx": 0.25,
+    "silence": 0.0,
+}
 
 
 def mix_audio(
@@ -15,19 +25,24 @@ def mix_audio(
     output_path: Path,
     inter_panel_pause: float = 0.5,
     panel_ambients: dict[int, list[Path]] | None = None,
+    panel_pauses: dict[int, float] | None = None,
 ) -> Timing:
     """Mix per-event WAV files into a single narration.wav. Returns timing.
 
     Each event_file dict: {"event_id": str, "panel_id": int, "wav_path": Path,
-                           "kind": str, "pause_override": float | None}
+                           "kind": str, "pause_override": float | None,
+                           "text": str (optional, recorded for subtitles),
+                           "gain_db": float (optional per-event gain)}
 
-    Mix levels (dB):
-    - dialogue/caption: 0 dB
-    - sfx: -9 dB
-    - ambient bed: -18 dB
+    panel_pauses maps panel_id → pause inserted AFTER that panel (from the
+    script's pacing-aware pause events); inter_panel_pause is the fallback.
+
+    Mix levels (dB): dialogue/caption 0, sfx -9, ambient bed -18,
+    plus the per-event gain_db offset (tone-driven delivery).
     """
     timeline = AudioSegment.silent(duration=0)
     timing_entries: list[TimingEntry] = []
+    event_timings: list[EventTiming] = []
     current_panel_id: int | None = None
     panel_start_sec = 0.0
     panel_event_ids: list[str] = []
@@ -39,20 +54,15 @@ def mix_audio(
 
         seg = AudioSegment.from_file(str(wav_path))
 
-        # Apply mix level
+        # Apply mix level + per-event gain (tone-driven)
         kind = ev.get("kind", "dialogue")
-        db = MIX_LEVELS.get(kind, 0.0)
+        db = MIX_LEVELS.get(kind, 0.0) + float(ev.get("gain_db", 0.0))
         if db != 0.0:
             seg = seg + db
 
-        # Inter-panel pause
+        # Panel transition: close the previous panel's span, insert pause
         panel_id = ev.get("panel_id", 0)
         if current_panel_id is not None and panel_id != current_panel_id:
-            pause = inter_panel_pause
-            pause_override = ev.get("pause_override")
-            if pause_override is not None:
-                pause = pause_override
-            # Close previous panel timing
             if panel_event_ids:
                 timing_entries.append(TimingEntry(
                     panel_id=current_panel_id,
@@ -60,14 +70,29 @@ def mix_audio(
                     end_sec=len(timeline) / 1000.0,
                     event_ids=panel_event_ids,
                 ))
-            # Add silence
+            pause = inter_panel_pause
+            if panel_pauses and current_panel_id in panel_pauses:
+                pause = panel_pauses[current_panel_id]
             timeline += AudioSegment.silent(duration=int(pause * 1000))
             panel_start_sec = len(timeline) / 1000.0
             panel_event_ids = []
 
         current_panel_id = panel_id
+        ev_start = len(timeline) / 1000.0
         timeline += seg
+        event_timings.append(EventTiming(
+            event_id=ev.get("event_id", ""),
+            kind=kind,
+            text=ev.get("text", ""),
+            start_sec=ev_start,
+            end_sec=len(timeline) / 1000.0,
+        ))
         panel_event_ids.append(ev.get("event_id", ""))
+
+        # Breathing room after the event
+        breath = BREATH_AFTER.get(kind, 0.3)
+        if breath > 0:
+            timeline += AudioSegment.silent(duration=int(breath * 1000))
 
     # Close last panel
     if panel_event_ids and current_panel_id is not None:
@@ -121,5 +146,6 @@ def mix_audio(
 
     return Timing(
         entries=timing_entries,
+        events=event_timings,
         total_duration_sec=len(timeline) / 1000.0,
     )

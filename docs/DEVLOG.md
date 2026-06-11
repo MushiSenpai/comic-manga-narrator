@@ -277,3 +277,42 @@ namespace) instead of 0.5-10s SFX hits; the Pass 2 prompt demands a forensic
 sound-source inventory. Verified on the harbor page: 4 distinct beds
 downloaded and mixed. Remaining: visually-implied one-shot SFX (E3),
 dialogue ducking (E4), curated sfx_map pins (E5).
+
+---
+
+# Session 4 — 2026-06-11: pacing, camera language, tone, subtitles
+
+User feedback on the soundscape build: "wind blows from the east" should be
+*followed by a wind sound*, and the mix was wall-to-wall dialogue — no
+breathing room. Diagnosis: the mixer butt-joined event WAVs (the
+`dialogue_breath`/`caption_land` constants existed in config, consumed by
+nothing — the same dead-data pattern as `tone`). Shipped in one pass:
+
+- **Pacing**: per-kind breathing gaps after every event; inter-panel pauses
+  now come from the script's pacing-aware pause events (dramatic_reveal
+  lingers, quick_transition cuts) instead of a flat 0.5s.
+- **Caption sound cues**: captions naming an audible phenomenon (wind, waves,
+  thunder, ...) trigger a one-shot Freesound cue right after the line, +3dB
+  over SFX level — "the wind blows from the east… *woooosh*".
+- **A1+A2 camera rewrite**: clips now frame the PANEL (cropped from the page),
+  and panels with a speaker get a smoothstep punch-in that arrives at 80% and
+  holds. Architecture win: `camera.py` owns the trajectory and BOTH the
+  background renderer and the parallax overlay consume it (PIL → rawvideo →
+  ffmpeg pipes), deleting ffmpeg zoompan — and with it the whole
+  reverse-engineered crop-math/even-snap replication problem from v0.1.
+  Vision bboxes are panel-relative, which is now exactly camera space: the
+  panel→page mapping disappeared too.
+- **B1 tone → delivery**: Pass 2's `tone` now reaches Fish Speech as a speed
+  multiplier (shouting 1.10×, whispering 0.88×) and the mixer as per-event
+  gain (+4dB shout, −6dB whisper). Stack-side: the gateway needed a `speed`
+  Form field — the worker supported it all along, the gateway dropped it.
+- **C1**: Pass 2 transcribes in the page's ORIGINAL language (`--lang ja`
+  ready; Nemotron reads Japanese natively; needs Japanese voice profiles —
+  see VOICES.md).
+- **C3**: the mixer records absolute per-event spans (`Timing.events`);
+  every render emits a sidecar `.srt` (captions + dialogue), pages merge
+  into per-chapter `.srt` with cumulative video-duration offsets.
+- Tests: 23 (camera invariants, anchoring regression in the new
+  architecture, mixer breath/pause timing, SRT formatting). Test lesson:
+  the punch-in clamps at image edges by design — a near-edge bbox in the
+  test produced a "failure" that was actually correct behavior.

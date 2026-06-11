@@ -87,6 +87,7 @@ class ScriptEvent(BaseModel):
     panel_id: int
     kind: EventKind
     text: str = ""                # dialogue/caption text; sfx cue name
+    tone: str = ""                # delivery style from Pass 2 (shouting, whispering, ...)
     speaker_label: str = ""       # which character speaks
     voice_id: str = ""            # resolved voice bank ID
     duration_sec: float = 0.0      # estimated duration
@@ -131,6 +132,15 @@ class Cast(BaseModel):
 
 # ── Phase 3: Audio ──────────────────────────────────────────────────────
 
+class EventTiming(BaseModel):
+    """Absolute span of one audible event in the final mix (drives .srt)."""
+    event_id: str
+    kind: str = ""
+    text: str = ""
+    start_sec: float
+    end_sec: float
+
+
 class TimingEntry(BaseModel):
     """Timing for one panel's audio block."""
     panel_id: int
@@ -143,6 +153,7 @@ class Timing(BaseModel):
     """Phase 3 output: exact audio timestamps."""
     schema_version: str = "1.0"
     entries: list[TimingEntry]
+    events: list[EventTiming] = Field(default_factory=list)
     total_duration_sec: float = 0.0
 
 

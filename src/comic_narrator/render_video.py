@@ -22,17 +22,26 @@ def render_video(
     narration_wav: Path,
     output_path: Path,
 ) -> Path:
-    """Render a single page to MP4. Returns output path."""
+    """Render a single page to MP4. Returns output path.
+
+    A1 camera language: every clip frames its PANEL (cropped from the page),
+    not the whole page; panels with a speaking character get the punch-in
+    (camera eases toward the speaker — A2). Vision bboxes are panel-relative,
+    which is exactly the space the camera works in — no mapping needed.
+    """
+    from PIL import Image
+
+    page = Image.open(page_image).convert("RGB")
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
 
-        # Render each panel as Ken Burns clip
         panel_clips: list[Path] = []
         for entry in timing.entries:
             panel_id = entry.panel_id
             duration = entry.end_sec - entry.start_sec
 
-            # Find matching panel analysis for speaker bbox
+            # Find matching panel analysis for speaker bbox (panel coords)
             speaker_bbox = None
             for pa in page_analysis.panels_analysis:
                 if pa.panel_id == panel_id:
@@ -42,36 +51,34 @@ def render_video(
                             break
                     break
 
-            # Vision bboxes are panel-relative; the Ken Burns framing (and
-            # therefore the parallax overlay) works in page space.
-            if speaker_bbox is not None:
-                panel = next(
-                    (p for p in page_analysis.panels_layout.panels if p.id == panel_id),
-                    None,
-                )
-                if panel is None:
-                    speaker_bbox = None
-                else:
-                    speaker_bbox = (
-                        panel.bbox.x + speaker_bbox[0],
-                        panel.bbox.y + speaker_bbox[1],
-                        speaker_bbox[2],
-                        speaker_bbox[3],
-                    )
+            # Crop the panel from the page (fall back to the full page if the
+            # panel isn't in the layout — degraded vision runs).
+            panel = next(
+                (p for p in page_analysis.panels_layout.panels if p.id == panel_id),
+                None,
+            )
+            panel_img_path = tmp / f"panel_img_{panel_id}.png"
+            if panel is not None:
+                b = panel.bbox
+                page.crop((b.x, b.y, b.x + b.w, b.y + b.h)).save(panel_img_path)
+            else:
+                page.save(panel_img_path)
+                speaker_bbox = None
 
             kb_out = tmp / f"kenburns_p{panel_id}.mp4"
             ken_burns_frame(
-                page_image, kb_out, duration,
+                panel_img_path, kb_out, duration,
                 zoom_factor=KEN_BURNS_ZOOM_FACTOR,
                 pan_fraction=KEN_BURNS_PAN_FRACTION,
                 width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS,
+                speaker_bbox=speaker_bbox,
             )
 
-            # Parallax overlay (None when the panel has no usable speaker bbox).
-            # Zoom/pan must match the Ken Burns call above so the overlay
-            # stays anchored to the moving background.
+            # Parallax overlay (None when the panel has no usable speaker
+            # bbox). Shares camera_rect with ken_burns_frame — anchored by
+            # construction.
             plx_out = render_parallax_overlay(
-                page_image, speaker_bbox, tmp / f"parallax_p{panel_id}.mov", duration,
+                panel_img_path, speaker_bbox, tmp / f"parallax_p{panel_id}.mov", duration,
                 zoom_factor=KEN_BURNS_ZOOM_FACTOR,
                 pan_fraction=KEN_BURNS_PAN_FRACTION,
                 scale_up=PARALLAX_SCALE, shift_px=PARALLAX_SHIFT,

@@ -120,7 +120,11 @@ Output valid JSON with these rules:
 
 Output ONLY the JSON object, no markdown, no explanation."""
 
-PASS2_PROMPT = "Analyze this comic panel and return the full semantic extraction JSON."
+PASS2_PROMPT = (
+    "Analyze this comic panel and return the full semantic extraction JSON. "
+    "Transcribe all dialogue, captions and sfx EXACTLY as written, in their "
+    "ORIGINAL language (page language: {lang}) — do NOT translate."
+)
 
 
 PASS3_SYSTEM = """You are a character identity resolver for comic/manga. Given per-panel analysis data from multiple panels, determine which character labels refer to the SAME person across panels and consolidate them into a cast list.
@@ -248,11 +252,13 @@ class NemotronClient:
 
     # ── Pass 2: Per-Panel Semantic Extraction ───────────────────────
 
-    def pass2_analyze_panel(self, panel_image_path: Path, panel_id: int) -> PanelAnalysis:
+    def pass2_analyze_panel(
+        self, panel_image_path: Path, panel_id: int, lang: str = "en"
+    ) -> PanelAnalysis:
         """Extract all semantic info from a single cropped panel image."""
         raw = self._call_nemotron(
             system_prompt=PASS2_SYSTEM,
-            user_text=PASS2_PROMPT,
+            user_text=PASS2_PROMPT.format(lang=lang),
             image_path=panel_image_path,
             temperature=0.1,
             max_tokens=4096,
