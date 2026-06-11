@@ -363,3 +363,23 @@ commits:
    sees uniform streams (mixed stream params are exactly the class of
    silent concat bug this project keeps meeting). Subtitle timestamps
    offset by the overview length in both single-page and book-merge paths.
+
+## Session 5 addendum — two self-inflicted bugs, honestly logged
+
+- **Bug 8 (tooling discipline):** an unanchored `str.replace` during the
+  expression-normalization patch matched a comment that existed in TWO
+  places and injected the interjection block twice — slicing
+  `render_audio`'s body off its `return` (function returned None; pipeline
+  crashed at tuple unpack). Tests stayed green because no unit test calls
+  `render_audio` end-to-end. File rebuilt clean. Lessons: anchor patch
+  targets uniquely, and integration seams need at least a smoke test.
+- **Bug 9 (model variance, round 3):** when Nemotron's panel output isn't
+  parseable JSON at all, `json_repair` returns a bare *string*; callers
+  `.get()` on it and one bad sample silently voided an entire panel — this
+  time the dialogue panel. `_parse_json` now rejects non-dict output with a
+  retryable error and `parse_page` takes a second sample before stubbing
+  (temperature 0.1 still has variance; the retry fixed it on the next run).
+- Final verified render (59s): establishing shot → harbor panel with cow
+  moo + seagulls + windmill creak (!) → ship panel with flag flap + wave
+  crash → dialogue panel with punch-in, shouted "HEY, LUFFY!", humph'd
+  HMPH, subtitles offset past the 3s overview.
