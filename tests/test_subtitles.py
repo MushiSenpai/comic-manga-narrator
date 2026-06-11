@@ -79,3 +79,15 @@ def test_write_srt(tmp_path):
     assert "1\n00:00:00,500 --> 00:00:02,000\nONE YEAR AGO..." in content
     assert "2\n00:00:03,000 --> 00:00:04,200\nHEY, LUFFY!" in content
     assert "FWAP" not in content
+
+
+def test_normalize_tts_text():
+    from comic_narrator.render_audio import normalize_tts_text
+    # ALL-CAPS lettering becomes speakable sentence case
+    assert normalize_tts_text("HEY, LUFFY! WHAT'RE YOU UP TO NOW?!") == \
+        "Hey, luffy! what're you up to now?!"
+    # Interjections map to pronounceable forms, not spelled-out letters
+    assert normalize_tts_text("HMPH!") == "Humph!"
+    assert normalize_tts_text("TCH... fine.") == "Tsk... fine."
+    # Mixed-case text passes through untouched
+    assert normalize_tts_text("One Piece") == "One Piece"

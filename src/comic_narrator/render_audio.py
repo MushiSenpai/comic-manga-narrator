@@ -22,6 +22,45 @@ TONE_DELIVERY = {
     "confident":  (1.00, 1.0),
 }
 
+# Comics lettering is ALL CAPS by convention; TTS engines read caps as
+# spelled-out letters or robotic emphasis. Interjections are expressions,
+# not words to spell ("HMPH" must sound like a scoff, not aitch-em-pee-aitch).
+# Subtitles keep the original lettering — only the TTS input is normalized.
+INTERJECTIONS = {
+    "hmph": "humph",
+    "hmm": "hmm",
+    "hm": "hmm",
+    "tch": "tsk",
+    "grr": "grrr",
+    "ugh": "ugh",
+    "huh": "huh",
+    "heh": "heh",
+    "pfft": "pfft",
+    "gah": "gah",
+    "eh": "eh",
+    "ow": "ow",
+    "whew": "phew",
+}
+
+
+def normalize_tts_text(text: str) -> str:
+    """Make comics lettering speakable: de-caps + expand interjections."""
+    import re
+    t = text.strip()
+    if t.isupper():
+        t = t.lower()
+        t = t[:1].upper() + t[1:]
+    words = re.split(r"(\W+)", t)
+    out = []
+    for w in words:
+        if w.isalpha() and w.lower() in INTERJECTIONS:
+            r = INTERJECTIONS[w.lower()]
+            out.append(r.capitalize() if w[:1].isupper() else r)
+        else:
+            out.append(w)
+    return "".join(out)
+
+
 # Caption-triggered one-shot cues: when narration TEXT names an audible
 # phenomenon ("THE WIND BLOWS FROM THE EAST"), play the sound right after
 # the line — "wind blowing... woooosh".
@@ -76,7 +115,7 @@ def render_audio(
         out_wav = wav_dir / f"{ev['event_id']}.wav"
         speed, gain_db = TONE_DELIVERY.get(ev.get("tone", ""), (1.0, 0.0))
         try:
-            tts.synthesize(ev["text"], ev["voice_id"], out_wav, speed=speed)
+            tts.synthesize(normalize_tts_text(ev["text"]), ev["voice_id"], out_wav, speed=speed)
             event_files.append({**ev, "wav_path": out_wav, "gain_db": gain_db})
         except Exception as e:
             print(f"  [WARN] TTS failed for {ev['event_id']}: {e}")
@@ -96,7 +135,46 @@ def render_audio(
                         "pause_override": e.pause_override,
                     })
 
-    # Caption-triggered one-shot cues ("THE WIND BLOWS..." → woooosh).
+    # Comics lettering is ALL CAPS by convention; TTS engines read caps as
+# spelled-out letters or robotic emphasis. Interjections are expressions,
+# not words to spell ("HMPH" must sound like a scoff, not aitch-em-pee-aitch).
+# Subtitles keep the original lettering — only the TTS input is normalized.
+INTERJECTIONS = {
+    "hmph": "humph",
+    "hmm": "hmm",
+    "hm": "hmm",
+    "tch": "tsk",
+    "grr": "grrr",
+    "ugh": "ugh",
+    "huh": "huh",
+    "heh": "heh",
+    "pfft": "pfft",
+    "gah": "gah",
+    "eh": "eh",
+    "ow": "ow",
+    "whew": "phew",
+}
+
+
+def normalize_tts_text(text: str) -> str:
+    """Make comics lettering speakable: de-caps + expand interjections."""
+    import re
+    t = text.strip()
+    if t.isupper():
+        t = t.lower()
+        t = t[:1].upper() + t[1:]
+    words = re.split(r"(\W+)", t)
+    out = []
+    for w in words:
+        if w.isalpha() and w.lower() in INTERJECTIONS:
+            r = INTERJECTIONS[w.lower()]
+            out.append(r.capitalize() if w[:1].isupper() else r)
+        else:
+            out.append(w)
+    return "".join(out)
+
+
+# Caption-triggered one-shot cues ("THE WIND BLOWS..." → woooosh).
     # Inserted immediately after the caption that names the phenomenon, a
     # touch louder than the ambient bed so it reads as a cue, not texture.
     if freesound_api_key:
