@@ -228,6 +228,39 @@ class NemotronClient:
             raise ValueError(f"model output is not a JSON object: {str(data)[:80]!r}")
         return _normalize_keys(data)
 
+    def translate_lines(self, lines: list[str], target: str = "English") -> list[str]:
+        """Translate event texts in one call (C4). Returns same-length list;
+        falls back to originals on any mismatch/error — subtitles must never
+        block a render. T1: translation stays on local Nemotron."""
+        if not lines:
+            return []
+        import json as _json
+        try:
+            raw = self._call_nemotron(
+                system_prompt=(
+                    f"Translate each comic line to natural {target}. Keep the "
+                    "register (shouts stay shouts). Return ONLY a JSON array of "
+                    "strings, same length and order as the input."),
+                user_text=_json.dumps(lines, ensure_ascii=False),
+                max_tokens=2048,
+            )
+            out = self._parse_json_array(raw)
+            if isinstance(out, list) and len(out) == len(lines):
+                return [str(x) for x in out]
+        except Exception:
+            pass
+        return lines
+
+    def _parse_json_array(self, raw: str):
+        import json as _json
+        text = raw.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rstrip("`").strip()
+        try:
+            return _json.loads(text)
+        except _json.JSONDecodeError:
+            return json_repair.loads(text)
+
     # ── Pass 1: Panel Detection ─────────────────────────────────────
 
     def pass1_detect_panels(

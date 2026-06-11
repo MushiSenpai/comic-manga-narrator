@@ -24,8 +24,17 @@ def _fmt_ts(sec: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-def write_srt(timing, srt_path: Path, offset_sec: float = 0.0) -> Path:
-    """Write an .srt from a Timing object (or parsed timing.json dict)."""
+def write_srt(
+    timing,
+    srt_path: Path,
+    offset_sec: float = 0.0,
+    text_overrides: dict[str, str] | None = None,
+) -> Path:
+    """Write an .srt from a Timing object (or parsed timing.json dict).
+
+    text_overrides maps event_id → replacement text — used for the
+    translated subtitle track (C4): same timings, translated lines.
+    """
     events = timing.get("events", []) if isinstance(timing, dict) else [
         e.model_dump() for e in timing.events
     ]
@@ -34,12 +43,13 @@ def write_srt(timing, srt_path: Path, offset_sec: float = 0.0) -> Path:
     for e in events:
         if e.get("kind") not in SUBTITLE_KINDS or not e.get("text"):
             continue
+        text = (text_overrides or {}).get(e.get("event_id", ""), e["text"])
         idx += 1
         blocks.append(
             f"{idx}\n"
             f"{_fmt_ts(e['start_sec'] + offset_sec)} --> "
             f"{_fmt_ts(e['end_sec'] + offset_sec)}\n"
-            f"{e['text']}\n"
+            f"{text}\n"
         )
     srt_path = Path(srt_path)
     srt_path.write_text("\n".join(blocks), encoding="utf-8")

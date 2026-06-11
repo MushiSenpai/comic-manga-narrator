@@ -443,3 +443,12 @@ finish what's left, document everything." Shipped, one commit per feature:
 8. **CI** (GitHub Actions pytest) and **docs/LESSONS.md** — 21 distilled
    takeaways across model integration, services, VRAM, media, voices,
    process.
+
+## Session 7 addendum — C4 translated subtitles
+
+Non-English pages now emit a second `.en.srt`: one batched Nemotron call
+translates all speakable lines (register preserved — "おいルフィ！" became
+"Oi Luffy!"), same timings via per-event text overrides, fail-soft (a
+translation hiccup can never block a render). Verified on the Japanese
+fixture: ja audio + ja subs + en subs from one command. Track C is now
+C1-C4 complete; C5 (raw scanned Japanese pages) awaits real content.

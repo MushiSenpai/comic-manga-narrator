@@ -65,7 +65,7 @@ English, or both).
 | C1 | ✅ **Keep source language** | `--lang ja` currently does nothing real. Pass 2 prompt: "transcribe dialogue in its original language, do not translate". Nemotron-3-Nano-Omni reads Japanese natively. | Raw Japanese page → script.json with Japanese text. |
 | C2 | ✅ **Japanese TTS voices** | Fish Speech 1.5 is natively multilingual (ja is a headline language). Needs *Japanese reference clips* — a cloned English voice reading Japanese sounds wrong. Source: **Common Voice Japanese (CC0)** — see [VOICES.md](VOICES.md) for the concrete download/curation procedure. | Japanese line synthesized with natural ja prosody. |
 | C3 | ✅ **Subtitle emission** | `script.json` events + `timing.json` already contain everything an `.srt` needs (per-event text + start/end). Emit `output.srt` always; `--burn-subs` runs the ffmpeg `subtitles` filter, default is soft-mux (`mov_text`). | MP4 plays with toggleable subs in VLC. |
-| C4 | **Translated subtitle track** | During Phase 2, ask Nemotron for a translation per event (`text_translated`); emit a second `.srt`. T1-sovereign: translation stays on local Nemotron. | ja audio + en subtitles on one render. |
+| C4 | ✅ **Translated subtitle track** | During Phase 2, ask Nemotron for a translation per event (`text_translated`); emit a second `.srt`. T1-sovereign: translation stays on local Nemotron. | ja audio + en subtitles on one render. |
 | C5 | **Vertical-text OCR validation** | Japanese manga uses vertical RTL text in bubbles; validate Pass 2 on raw (untranslated) scans, fix prompts if reading order inside bubbles scrambles. | 3 raw Japanese pages transcribed correctly. |
 
 ## Track E — Forensic soundscape (the "seagulls you can see but not read" principle)

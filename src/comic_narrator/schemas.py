@@ -88,6 +88,7 @@ class ScriptEvent(BaseModel):
     panel_id: int
     kind: EventKind
     text: str = ""                # dialogue/caption text; sfx cue name
+    text_translated: str = ""     # C4: English translation for the second .srt
     tone: str = ""                # delivery style from Pass 2 (shouting, whispering, ...)
     speaker_label: str = ""       # which character speaks
     voice_id: str = ""            # resolved voice bank ID

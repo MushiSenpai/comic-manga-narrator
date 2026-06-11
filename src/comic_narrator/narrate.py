@@ -157,6 +157,8 @@ def main() -> None:
     srt_path = output_path.with_suffix(".srt")
     write_srt(timing, srt_path, offset_sec=PAGE_OVERVIEW_SEC)
     print(f"  Subtitles: {srt_path}")
+    if not args.from_script_json:
+        _translated_srt(script, timing, srt_path, args.lang)
 
     # ── Phase 4: Video ───────────────────────────────────────────
     from comic_narrator.render_video import render_video
@@ -176,6 +178,30 @@ def main() -> None:
             shutil.rmtree(wav_dir)
 
     print(f"\nDone! {output_path}")
+
+
+def _translated_srt(script, timing, srt_path, lang):
+    """C4: when the page isn't English, emit a second .srt translated to
+    English on local Nemotron. Never blocks the render."""
+    if lang == "en":
+        return None
+    from comic_narrator.vision.nemotron_client import NemotronClient
+    from comic_narrator.subtitles import write_srt, SUBTITLE_KINDS
+    from comic_narrator.config import PAGE_OVERVIEW_SEC
+    speakables = [e for e in script.events
+                  if e.kind.value in SUBTITLE_KINDS and e.text]
+    if not speakables:
+        return None
+    client = NemotronClient()
+    if not client.health_check():
+        return None
+    translations = client.translate_lines([e.text for e in speakables])
+    overrides = {e.event_id: t for e, t in zip(speakables, translations)}
+    en_path = srt_path.with_suffix(".en.srt")
+    write_srt(timing, en_path, offset_sec=PAGE_OVERVIEW_SEC,
+              text_overrides=overrides)
+    print(f"  Subtitles (en): {en_path}")
+    return en_path
 
 
 def _load_freesound_key() -> str:

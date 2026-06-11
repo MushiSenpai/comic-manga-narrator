@@ -182,6 +182,9 @@ def narrate_page_resumable(
     from comic_narrator.subtitles import write_srt
     from comic_narrator.config import PAGE_OVERVIEW_SEC
     write_srt(timing, work_dir / "page.srt", offset_sec=PAGE_OVERVIEW_SEC)
+    if lang != "en":
+        from comic_narrator.narrate import _translated_srt
+        _translated_srt(script, timing, work_dir / "page.srt", lang)
 
     # Phase 4 — video
     render_video(page_image, page_analysis, timing, narration, page_mp4)
