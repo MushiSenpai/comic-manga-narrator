@@ -74,6 +74,14 @@ archetypes are cloned from **CMU ARCTIC** speakers (unrestricted license,
 festvox.org) — see DEVLOG Session 2. Add more via the gateway:
 `job_type=clone, profile_name=<voice_id>`.
 
+## Version history
+
+Every development pass is a tagged [GitHub Release](https://github.com/MushiSenpai/comic-manga-narrator/releases)
+(v0.1.0 → v0.6.0) summarizing what changed and which user feedback drove it;
+the full play-by-play — every iteration, bug, failure mode, and lesson —
+lives in [docs/DEVLOG.md](docs/DEVLOG.md), with the forward plan in
+[docs/ROADMAP.md](docs/ROADMAP.md).
+
 ## Status
 
 Phases 0–7 complete and verified end-to-end on real manga (2026-06-11),
