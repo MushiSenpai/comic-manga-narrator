@@ -55,6 +55,7 @@ def build_script(
     voice_bank_dir: Optional[Path] = None,
     output_dir: Optional[Path] = None,
     lang: str = "en",
+    prior_voice_map: Optional[dict[str, str]] = None,
 ) -> tuple[Script, Cast]:
     """Convert PageAnalysis into a timed script with voice assignments.
 
@@ -96,7 +97,9 @@ def build_script(
             ]
 
     events: list[ScriptEvent] = []
-    char_map: dict[str, str] = {}  # label → voice_id
+    # label → voice_id; seeded from the book-level cast map (B3) so a
+    # character keeps one voice across every page they appear on.
+    char_map: dict[str, str] = dict(prior_voice_map or {})
     cast_members: dict[str, CastMember] = {}
     event_counter = 0
 

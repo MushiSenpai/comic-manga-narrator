@@ -53,3 +53,67 @@ def test_group_chapters_ignores_out_of_range_and_duplicates():
 
 def test_group_chapters_single_page_chapters():
     assert group_chapters(3, [2, 3]) == [[1], [2], [3]]
+
+
+def test_collect_pages_from_cbz(tmp_path):
+    import zipfile
+    from PIL import Image
+    from comic_narrator.scale import collect_pages
+
+    cbz = tmp_path / "book.cbz"
+    with zipfile.ZipFile(cbz, "w") as zf:
+        for name in ("p2.jpg", "p1.jpg", "notes.txt"):
+            if name.endswith(".jpg"):
+                img_path = tmp_path / name
+                Image.new("RGB", (100, 150), "white").save(img_path)
+                zf.write(img_path, name)
+            else:
+                zf.writestr(name, "ignore me")
+    pages = collect_pages(cbz, tmp_path / "pages")
+    # Image members only, name-sorted (p1 before p2), renumbered
+    assert [p.name for p in pages] == ["page_0001.jpg", "page_0002.jpg"]
+    assert all(p.exists() for p in pages)
+
+
+def test_collect_pages_from_directory(tmp_path):
+    from PIL import Image
+    from comic_narrator.scale import collect_pages
+
+    src = tmp_path / "scans"
+    src.mkdir()
+    for name in ("b.png", "a.jpg"):
+        Image.new("RGB", (80, 120), "white").save(src / name)
+    (src / "cover.txt").write_text("not an image")
+    pages = collect_pages(src, tmp_path / "pages")
+    assert [p.name for p in pages] == ["page_0001.jpg", "page_0002.png"]
+
+
+def test_collect_pages_rejects_fake_cbr(tmp_path):
+    import pytest as _pytest
+    from comic_narrator.scale import collect_pages
+    bad = tmp_path / "book.cbr"
+    bad.write_bytes(b"Rar!\x1a\x07\x00 not a zip")
+    with _pytest.raises(ValueError, match="unrar|cbz"):
+        collect_pages(bad, tmp_path / "pages")
+
+
+def test_prior_voice_map_keeps_character_voice():
+    from comic_narrator.build_script import build_script
+    from comic_narrator.schemas import (
+        BBox, Character, Dialogue, PageAnalysis, PagePanels, Panel, PanelAnalysis,
+    )
+    analysis = PageAnalysis(
+        layout="manga",
+        panels_layout=PagePanels(layout="manga", panels=[
+            Panel(id=1, bbox=BBox(x=0, y=0, w=100, h=100), order_index=0)]),
+        panels_analysis=[PanelAnalysis(
+            panel_id=1,
+            characters=[Character(label="luffy", voice_attributes=["male", "young"],
+                                  voice_type="human", is_speaking=True)],
+            dialogues=[Dialogue(speaker="luffy", text="Yo!", tone="neutral")],
+        )],
+    )
+    # Page 50: the book map already assigned luffy a non-default voice
+    script, cast = build_script(analysis, prior_voice_map={"luffy": "ja_m_twenties_2e8835"})
+    dia = [e for e in script.events if e.kind.value == "dialogue"][0]
+    assert dia.voice_id == "ja_m_twenties_2e8835"

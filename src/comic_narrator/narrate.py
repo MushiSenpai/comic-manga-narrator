@@ -58,7 +58,10 @@ def main() -> None:
     output_path = Path(args.output)
     voice_bank = Path(args.voice_bank) if args.voice_bank else VOICE_BANK_DIR
     freesound_key = args.freesound_key or _load_freesound_key()
-    is_pdf = input_path.suffix.lower() == ".pdf"
+    is_pdf = (
+        input_path.suffix.lower() in (".pdf", ".cbz", ".cbr", ".zip")
+        or input_path.is_dir()
+    )
 
     # ── Phase 1: Vision ──────────────────────────────────────────
     from comic_narrator.parse_page import parse_page

@@ -34,6 +34,63 @@ def split_pdf(pdf_path: Path, pages_dir: Path, dpi: int = PAGE_DPI) -> list[Path
     return out_paths
 
 
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def collect_pages(input_path: Path, pages_dir: Path, dpi: int = PAGE_DPI) -> list[Path]:
+    """Turn whatever got dumped on us into an ordered list of page images.
+
+    Accepts: a PDF (rendered at dpi), a CBZ/ZIP comic archive (image members
+    extracted in name order — many .cbr files are actually zips and work
+    too), or a directory of page images (name order). Resumable: existing
+    outputs in pages_dir are reused.
+    """
+    import zipfile
+
+    input_path = Path(input_path)
+    suffix = input_path.suffix.lower()
+
+    if suffix == ".pdf":
+        return split_pdf(input_path, pages_dir, dpi=dpi)
+
+    pages_dir.mkdir(parents=True, exist_ok=True)
+
+    if suffix in (".cbz", ".zip", ".cbr"):
+        try:
+            zf = zipfile.ZipFile(input_path)
+        except zipfile.BadZipFile:
+            raise ValueError(
+                f"{input_path.name} is not a zip archive. Real RAR-based .cbr "
+                "files need unrar — convert to .cbz or extract to a folder."
+            )
+        with zf:
+            members = sorted(
+                m for m in zf.namelist()
+                if Path(m).suffix.lower() in IMAGE_EXTS and not m.startswith("__MACOSX")
+            )
+            out_paths: list[Path] = []
+            for i, m in enumerate(members):
+                out = pages_dir / f"page_{i + 1:04d}{Path(m).suffix.lower()}"
+                if not out.exists():
+                    out.write_bytes(zf.read(m))
+                out_paths.append(out)
+            return out_paths
+
+    if input_path.is_dir():
+        images = sorted(
+            p for p in input_path.iterdir() if p.suffix.lower() in IMAGE_EXTS
+        )
+        out_paths = []
+        for i, src in enumerate(images):
+            out = pages_dir / f"page_{i + 1:04d}{src.suffix.lower()}"
+            if not out.exists():
+                out.write_bytes(src.read_bytes())
+            out_paths.append(out)
+        return out_paths
+
+    raise ValueError(f"Unsupported book input: {input_path}")
+
+
 def group_chapters(n_pages: int, chapter_pages: list[int] | None) -> list[list[int]]:
     """Group 1-based page numbers into chapters.
 
@@ -63,6 +120,7 @@ def narrate_page_resumable(
     freesound_api_key: str = "",
     vision_only: bool = False,
     lang: str = "en",
+    prior_voice_map: dict[str, str] | None = None,
 ) -> Path | None:
     """Run phases 1-4 for one page, skipping any phase whose output exists.
 
@@ -104,6 +162,7 @@ def narrate_page_resumable(
             voice_bank_dir=voice_bank_dir,
             narrator_voice_id=narrator_voice_id,
             lang=lang,
+            prior_voice_map=prior_voice_map,
         )
         script_json.write_text(script.model_dump_json(indent=2))
         cast_json.write_text(cast.model_dump_json(indent=2))
@@ -156,26 +215,55 @@ def narrate_book(
     if voice_bank_dir is None:
         voice_bank_dir = VOICE_BANK_DIR
 
+    import json as _json
+
     output_path = Path(output_path)
     work_root = output_path.parent / f"{output_path.stem}-work"
-    page_images = split_pdf(Path(pdf_path), work_root / "pages")
+    page_images = collect_pages(Path(pdf_path), work_root / "pages")
     n_pages = len(page_images)
     print(f"Book: {n_pages} pages → {work_root}")
 
+    # B3 — book-level cast map: a character keeps one voice everywhere
+    cast_map_path = work_root / "cast_map.json"
+    cast_map: dict[str, str] = (
+        _json.loads(cast_map_path.read_text()) if cast_map_path.exists() else {}
+    )
+
     page_videos: list[Path] = []
+    failed_pages: dict[int, str] = {}
     for idx, page_image in enumerate(page_images, start=1):
         work_dir = work_root / f"page_{idx:04d}"
         already = (work_dir / "page.mp4").exists()
         print(f"Page {idx}/{n_pages}{' (cached)' if already else ''}...")
-        video = narrate_page_resumable(
-            page_image, work_dir, layout,
-            voice_bank_dir, narrator_voice_id, freesound_api_key,
-            vision_only=vision_only, lang=lang,
-        )
+        try:
+            video = narrate_page_resumable(
+                page_image, work_dir, layout,
+                voice_bank_dir, narrator_voice_id, freesound_api_key,
+                vision_only=vision_only, lang=lang,
+                prior_voice_map=cast_map,
+            )
+        except Exception as e:
+            # One bad page must not kill a 200-page run — log and move on.
+            failed_pages[idx] = f"{type(e).__name__}: {e}"
+            print(f"  [FAIL] page {idx}: {failed_pages[idx]}")
+            (work_root / "failures.json").write_text(
+                _json.dumps(failed_pages, indent=2)
+            )
+            continue
+        # Merge this page's resolved cast into the book map
+        cast_json = work_dir / "cast.json"
+        if cast_json.exists():
+            for m in _json.loads(cast_json.read_text()).get("members", []):
+                cast_map.setdefault(m["character_id"], m["voice_id"])
+            cast_map_path.write_text(_json.dumps(cast_map, indent=2))
         if video is not None:
             page_videos.append(video)
         if progress_callback:
             progress_callback(idx, n_pages)
+
+    if failed_pages:
+        print(f"⚠ {len(failed_pages)} page(s) failed — see {work_root}/failures.json; "
+              "re-run to retry just those pages (everything else is cached).")
 
     if vision_only:
         print(f"Vision pass complete: page/script JSONs in {work_root}. "
