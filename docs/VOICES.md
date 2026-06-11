@@ -98,3 +98,26 @@ reference. `male_young_bright/angry.wav` vs `.../neutral.wav` produces
 audibly different deliveries of the same text. Mine emotive segments from
 LibriTTS-R (CC BY 4.0 — acted audiobook emotion) rather than the NC-licensed
 emotion corpora.
+
+## Voice-actor matching ("can we sound like the anime?")
+
+Anime adaptations mean an *official* voice exists for many characters. The
+tempting shortcut — cloning the actual voice actor from anime audio — is
+off the table on this stack, twice over: the recording is copyrighted, and
+a person's voice is protected by personality/publicity rights (voice
+cloning of identifiable real people without consent is exactly the misuse
+case voice-cloning ethics policies name). T1-sovereign doesn't mean
+rights-free.
+
+The defensible version is **similarity casting**, and it's built:
+`scripts/match-voice.py --ref <clip>` measures a reference clip's vocal
+character (median F0, pitch variability, spectral brightness) and ranks the
+voices you ARE licensed to use — your cloned bank and/or any CC0/CC-BY
+corpus directory — by acoustic distance. You supply the reference clip from
+your own legally-obtained media; the output is the closest *licensed* voice,
+not a clone of the actor. With the 584K-clip Japanese Common Voice corpus on
+disk, `--corpus` can search thousands of CC0 speakers for a closer match
+than the 8 currently cloned.
+
+Self-test: a bank voice used as its own reference ranks itself first at
+distance ~0.005.
