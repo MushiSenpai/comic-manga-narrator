@@ -51,8 +51,8 @@ both currently dropped on the floor in Phase 3.
 | # | Item | Approach | Acceptance test |
 |---|---|---|---|
 | B1 | ✅ **Tone → delivery params** | Map `tone` to Fish Speech params per request: shouting → speed 1.15 + gain; whispering → speed 0.9 − gain; plumb a `speed`/params dict through the gateway TTS job (worker already accepts `speed`). | "HEY, LUFFY!" sounds shouted; a whisper sounds whispered. |
-| B2 | **Emotion-variant references** | Per archetype, multiple reference clips: `male_young_bright/angry.wav`, `.../sad.wav`... Fish Speech cloning follows the reference's affect — the cheapest "emotion control" there is. Select by `dominant_emotion` with neutral fallback. Mine emotive segments from LibriTTS-R (CC BY 4.0 audiobooks contain acted emotion); most dedicated emotion corpora (RAVDESS, ESD) are NC-licensed — rejected. | Same character angry vs calm produces audibly different reads. |
-| B3 | **Book-level cast persistence** | `scale.py` re-resolves voices per page; a character must keep one voice across a whole book (persist `cast.json` label→voice map in the work root, fuzzy-match labels across pages via Pass 3). | Luffy keeps his voice from page 1 to page 190. |
+| B2 | ✅(mechanism) **Emotion-variant references** | Per archetype, multiple reference clips: `male_young_bright/angry.wav`, `.../sad.wav`... Fish Speech cloning follows the reference's affect — the cheapest "emotion control" there is. Select by `dominant_emotion` with neutral fallback. Mine emotive segments from LibriTTS-R (CC BY 4.0 audiobooks contain acted emotion); most dedicated emotion corpora (RAVDESS, ESD) are NC-licensed — rejected. | Same character angry vs calm produces audibly different reads. |
+| B3 | ✅ **Book-level cast persistence** | `scale.py` re-resolves voices per page; a character must keep one voice across a whole book (persist `cast.json` label→voice map in the work root, fuzzy-match labels across pages via Pass 3). | Luffy keeps his voice from page 1 to page 190. |
 | B4 | **SFX vocalization choice** | "FWAP" is currently looked up on Freesound; some SFX read better *spoken* dramatically (Japanese manga tradition). Config flag per-SFX-class. | A/B render both modes. |
 
 ## Track C — Japanese source + subtitles (the actual product goal)
@@ -80,13 +80,13 @@ birds should sound like a harbor with gulls.
 | E2 | **Per-panel ambient beds** | ✅ 2026-06-11: each panel gets up to 2 layered beds over its own timeline span (300ms fades), replacing the single flattened page bed; Freesound ambient searches now target loopable 10-120s recordings, not SFX hits |
 | E3 | Visually-implied SFX events | ✅ 2026-06-11: Pass 2 emits `visual_sfx` (seagulls → cries, cow → moo, flag → flap); build_script turns them into -9dB one-shot events — audible over the ducked beds |
 | E4 | Dialogue ducking | ✅ 2026-06-11: beds drop 5dB under speech (120ms margins); lower ambient a further 4-6dB under dialogue/caption spans (pydub gain automation) so beds never fight the voices |
-| E5 | Curated `sfx_map.yaml` growth | ⬜ pin known-good Freesound IDs for the common cues (waves, wind, crowd, rain, seagulls) — text search top-hit is a lottery |
+| E5 | Curated `sfx_map.yaml` growth | ✅ 2026-06-12: 12 common cues pinned to name-validated CC0 Freesound IDs; pin known-good Freesound IDs for the common cues (waves, wind, crowd, rain, seagulls) — text search top-hit is a lottery |
 
 ## Track D — Ops / scale
 
 | # | Item | Notes |
 |---|---|---|
-| D1 | GitHub remote + CI | repo created; push pending email-privacy resolution; then a 10-line pytest workflow |
+| D1 | ✅ GitHub remote + CI | repo created; push pending email-privacy resolution; then a 10-line pytest workflow |
 | D2 | Stack doc fold-in | agent-mode/B2 changes belong in mushishi-sovereign-ai-stack v1.8 (also: doc still lists the removed `--moe-backend triton` flags — twice bitten) |
 | D3 | Long-book throughput | TTS events run sequentially; the gateway+RQ can take concurrent jobs (`FISH_SPEECH_CONCURRENCY=4` config exists, unused) |
 | D4 | `creative-lipsync` service cleanup | vestigial container restart-loops; lipsync runs in audio-worker |

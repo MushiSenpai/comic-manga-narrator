@@ -405,3 +405,41 @@ commits:
   the gateway with `language=ja` — natural prosody from ~22s references.
 - C2 closed. Next Japanese milestone: language-aware voice auto-pick + a raw
   Japanese page through `--lang ja` (C5).
+
+---
+
+# Session 7 — overnight autonomous run (2026-06-11 → 12)
+
+Directive: "don't stop for approvals — refine voices, handle big formats,
+finish what's left, document everything." Shipped, one commit per feature:
+
+1. **Language-aware casting**: `match_voice` scores `{lang}_*` profiles by
+   gender/age/timbre; ja narrator default; ja voice.yaml metadata.
+2. **Full Japanese e2e** 🎌: synthetic vertical-text manga page (Noto CJK)
+   → `--lang ja` single-pass → Japanese transcription (vertical bubbles
+   read correctly), ja cast, Fish Speech ja audio, ja subtitles. Bug 10
+   found en route: tied attribute scores collapsed the whole cast onto one
+   profile via dict order — `match_voice` now takes an exclusion set.
+   Verification lesson: re-running without `--keep-intermediates` leaves a
+   STALE script.json; verify against fresh artifacts.
+3. **Integration smoke test** (the bug-8 gap): phases 3→4 with TTS mocked
+   at the class boundary — and it caught its first real regression hours
+   later (B2's new kwarg broke the mock's signature).
+4. **Big-format hardening**: `collect_pages()` accepts PDF / CBZ / ZIP /
+   image folders ("someone dumps a file" now works); per-page failure
+   tolerance with `failures.json` (a bad page can't kill a 200-page run;
+   re-runs retry only failures); B3 book-level `cast_map.json` so a
+   character keeps one voice across the whole book.
+5. **Similarity casting** (`match-voice.py`): rank licensed voices by
+   acoustic distance (F0, pitch spread, brightness) to a user-supplied
+   reference. The voice-actor question answered the defensible way:
+   cast the closest *licensed* voice; never clone the actor.
+6. **B2 mechanism**: `{voice_id}__{emotion}.wav` variants resolve by tone
+   bucket (shouting→angry...), falling back to base references.
+7. **E5**: 12 common cues pinned to CC0 Freesound IDs — with name
+   validation, because rating-sorted top hits included coins-falling for
+   "rain falling" and a piano pedal for "creaking ship". The lottery is
+   real; pin with eyes open.
+8. **CI** (GitHub Actions pytest) and **docs/LESSONS.md** — 21 distilled
+   takeaways across model integration, services, VRAM, media, voices,
+   process.

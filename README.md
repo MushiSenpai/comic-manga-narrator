@@ -80,7 +80,8 @@ Every development pass is a tagged [GitHub Release](https://github.com/MushiSenp
 (v0.1.0 → v0.6.0) summarizing what changed and which user feedback drove it;
 the full play-by-play — every iteration, bug, failure mode, and lesson —
 lives in [docs/DEVLOG.md](docs/DEVLOG.md), with the forward plan in
-[docs/ROADMAP.md](docs/ROADMAP.md).
+[docs/ROADMAP.md](docs/ROADMAP.md), and the distilled
+cross-project takeaways in [docs/LESSONS.md](docs/LESSONS.md).
 
 ## Status
 
