@@ -542,3 +542,9 @@ Watched the Solo Leveling ep0 sample. Three fixes + one honest limit:
   *variation*, not *acting*. Documented the real ceiling and the two paths
   (emotion-variant references — now the top voice priority — or an
   expressive TTS model swap). See VOICES.md "honest ceiling".
+
+### Session 10 verification — ep0 v2 render
+
+Same 3 strips, all four fixes live: **254s → 141s** (45% of the runtime was
+dead air and repeated one-shots), 39MB → 16MB. Camera now holds whole
+panels and eases gently; VP9 intermediates kept scratch in the tens of MB.
