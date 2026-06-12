@@ -29,17 +29,24 @@ GUTTER_STD_MAX = 8.0      # row is "background" if its pixel std is below this
 SEARCH_FROM = 0.55        # only look for a cut in the lower part of the window
 
 
-def extract_strips_native(pdf_path: Path, out_dir: Path) -> list[Path]:
-    """Extract each PDF page's embedded image at native resolution.
+def extract_strips_native(
+    pdf_path: Path, out_dir: Path,
+    first_page: int = 1, last_page: int | None = None,
+) -> list[Path]:
+    """Extract a PDF page range's embedded images at native resolution.
 
-    Resumable: existing page_NNNN.* are reused. Returns ordered paths.
+    first/last are 1-based inclusive. Extracting only the requested range
+    matters: a full webtoon is 4000+ strips / ~17GB — never materialize the
+    whole book to render one episode. Resumable: existing page_NNNN.* reused.
     """
     import fitz
 
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
     with fitz.open(pdf_path) as doc:
-        for i in range(len(doc)):
+        lo = max(first_page - 1, 0)
+        hi = last_page if last_page is not None else len(doc)
+        for i in range(lo, min(hi, len(doc))):
             # Most webtoon PDFs are one full-page image per page; grab it at
             # native res. Fall back to a modest-DPI render if there isn't one.
             existing = list(out_dir.glob(f"page_{i + 1:04d}.*"))
@@ -149,11 +156,9 @@ def webtoon_to_panels(
     """
     strips_dir = work_dir / "strips"
     panels_dir = work_dir / "panels"
-    all_strips = extract_strips_native(Path(pdf_path), strips_dir)
-    lo = max(first_page - 1, 0)
-    hi = last_page if last_page is not None else len(all_strips)
-    selected = all_strips[lo:hi]
-
+    selected = extract_strips_native(
+        Path(pdf_path), strips_dir, first_page=first_page, last_page=last_page,
+    )
     panels: list[Path] = []
     for n, strip in enumerate(selected, start=first_page):
         panels += slice_strip(strip, panels_dir, f"strip_{n:04d}")
