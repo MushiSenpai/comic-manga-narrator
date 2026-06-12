@@ -548,3 +548,18 @@ Watched the Solo Leveling ep0 sample. Three fixes + one honest limit:
 Same 3 strips, all four fixes live: **254s → 141s** (45% of the runtime was
 dead air and repeated one-shots), 39MB → 16MB. Camera now holds whole
 panels and eases gently; VP9 intermediates kept scratch in the tens of MB.
+
+### Session 10 verified — ep0 v3 (audio rebuild + action sounds + halo)
+
+- **Audio architecture fix CONFIRMED:** v2's 85s dead span → gone. Longest
+  gap now ~4s (legit pacing). Whole-file level healthy: mean -27.7dB, peak
+  -1.3dB. The single-mux rebuild resolved the glitches/static.
+- **Action sounds CONFIRMED:** the enriched Pass 2 prompt produced fire
+  whoosh (fireball), sword slash, heavy impact, crack (breaking), monster
+  roar, magic surge, blood spray — and read Korean SFX lettering (화르륵).
+  84 sfx clips cached/resolved.
+- **Halo works but UNDERUSED:** only 1/13 panels got a speaker halo —
+  `is_speaking + is_visible + bbox` is too rarely all-true on real webtoon
+  panels. This is the is_speaking/face-point reliability gap (TTS-RESEARCH
+  extraction item #4); the halo mechanism is correct, the vision signal
+  feeding it is sparse. Next: ask Pass 2 for a reliable speaker + face anchor.
