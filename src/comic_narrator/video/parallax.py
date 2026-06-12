@@ -5,9 +5,10 @@ to the moving background by construction. (v0.2 rendered the background with
 ffmpeg zoompan and replicated its crop math here — including an undocumented
 even-snap; owning the trajectory in camera.py removes that failure class.)
 
-The intermediate is ProRes 4444 (yuva444p10le, .mov): ffmpeg's native ProRes
-decoder carries alpha without extra input flags, unlike VP9 alpha (needs
--c:v libvpx-vp9 on decode) and libx264 (cannot encode alpha at all).
+The intermediate is VP9 with alpha (yuva420p, .webm): ~10-20x smaller than
+ProRes 4444, which is what makes series-scale runs feasible. The trade is
+that compose.py must decode it with -c:v libvpx-vp9 or the alpha plane is
+silently dropped (libx264 cannot carry alpha at all).
 
 Coordinates: panel space — both the image and speaker_bbox are the panel
 crop produced by render_video.
@@ -38,7 +39,7 @@ def render_parallax_overlay(
 ) -> Path | None:
     """Render the speaker cutout as a transparent overlay video.
 
-    Returns the overlay path (.mov), or None when there is no usable bbox —
+    Returns the overlay path (.webm), or None when there is no usable bbox —
     compose_video skips the overlay in that case.
     """
     from PIL import Image, ImageDraw, ImageFilter
@@ -80,9 +81,14 @@ def render_parallax_overlay(
         "-r", str(fps),
         "-i", "-",
         "-frames:v", str(num_frames),
-        "-c:v", "prores_ks",
-        "-profile:v", "4444",
-        "-pix_fmt", "yuva444p10le",
+        # VP9 with alpha (yuva420p): ~10-20x smaller than ProRes 4444 — a
+        # 16s overlay drops from ~3GB to well under 100MB, which is what
+        # makes series-scale (20k+ panels) feasible. compose.py decodes it
+        # with an explicit -c:v libvpx-vp9 so the alpha plane survives.
+        "-c:v", "libvpx-vp9",
+        "-pix_fmt", "yuva420p",
+        "-b:v", "0", "-crf", "30",
+        "-auto-alt-ref", "0",
         str(output_path),
     ]
     proc = subprocess.Popen(

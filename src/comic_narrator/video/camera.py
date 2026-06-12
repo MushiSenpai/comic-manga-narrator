@@ -50,45 +50,67 @@ def camera_rect(
     speaker_bbox: tuple[int, int, int, int] | None = None,
     zoom_factor: float = 1.05,
     pan_fraction: float = 0.05,
-    punch_zoom_max: float = 2.2,
+    max_zoom: float = 1.5,
+    subject_margin: float = 0.6,
     out_aspect: float = 16 / 9,
     pacing_hint: str = "",
 ) -> tuple[float, float, float, float]:
     """Crop rect (x, y, w, h) in image coords for output frame n.
 
-    speaker_bbox is in the SAME coordinate space as the image (panel-relative
-    when the image is a panel crop). The rect is always out_aspect and always
-    clamped inside the image. pacing_hint selects a motion profile (A4):
-    action panels punch faster and shake; reveals creep for the whole clip.
+    Framing rules (from real review feedback — the old version cropped into
+    faces and felt artificial):
+      * No speaker → show the WHOLE panel, only the gentlest Ken Burns drift.
+      * Speaker present → the target frame is the speaker's bbox padded by
+        `subject_margin` on every side, so the WHOLE BODY stays visible.
+        - If the speaker already fills most of the panel, that padded target
+          is ~the whole panel → the camera barely moves (a small page with
+          one person gets only a slight push, never a face crop).
+        - If the speaker is small in a large panel, the camera eases in to
+          them — but never tighter than `max_zoom` (default 1.5×), so it
+          stays a gentle move, not a punch into the face.
+
+    speaker_bbox is in the SAME coordinate space as the image. The returned
+    rect is always out_aspect and clamped inside the image.
     """
     arrive, shake_px, zoom_mult = PACING_PROFILES.get(
         pacing_hint, PACING_PROFILES[""]
     )
-    bw, bh = base_rect(img_w, img_h, out_aspect)
+    bw, bh = base_rect(img_w, img_h, out_aspect)  # full-frame crop
     cx0, cy0 = img_w / 2.0, img_h / 2.0
     t = n / max(num_frames - 1, 1)
 
     if speaker_bbox is None:
+        # Whole panel, gentlest drift.
         zf = 1.0 + (zoom_factor - 1.0) * zoom_mult
         z = 1.0 + (zf - 1.0) * (t if arrive >= 1.0 else _smoothstep(t / arrive))
         w, h = bw / z, bh / z
-        # slow quarter-wave drift, scaled so it stays subtle
         cx = cx0 + math.sin(t * math.pi / 2.0) * pan_fraction * bw * 0.5
         cy = cy0
     else:
         sx, sy, sw, sh = speaker_bbox
         scx, scy = sx + sw / 2.0, sy + sh / 2.0
-        # Target zoom: speaker height fills ~45% of the frame, clamped to a
-        # sane range so tiny bboxes don't yield extreme digital zoom.
-        zt = bh / max(sh / 0.45, 1.0)
-        zt = max(1.15, min(zt * zoom_mult, punch_zoom_max))
+
+        # Target = subject padded by margin on all sides (whole body + air).
+        tw = sw * (1.0 + 2.0 * subject_margin)
+        th = sh * (1.0 + 2.0 * subject_margin)
+        # Never tighter than max_zoom (smallest allowed crop).
+        tw = max(tw, bw / max_zoom)
+        th = max(th, bh / max_zoom)
+        # Fit to output aspect by growing the short side.
+        if tw / th < out_aspect:
+            tw = th * out_aspect
+        else:
+            th = tw / out_aspect
+        # Never larger than the full frame (big speaker ⇒ ~no zoom).
+        tw, th = min(tw, bw), min(th, bh)
+
+        # Ease from full frame → target; large subjects barely move.
         p = _smoothstep(t / arrive) if arrive < 1.0 else t
-        z = 1.0 + (zt - 1.0) * p
-        w, h = bw / z, bh / z
+        w = bw + (tw - bw) * p
+        h = bh + (th - bh) * p
         cx = cx0 + (scx - cx0) * p
         cy = cy0 + (scy - cy0) * p
 
-    # Action shake: deterministic high-frequency jitter, applied pre-clamp
     if shake_px > 0:
         cx += math.sin(n * 2.7) * shake_px
         cy += math.cos(n * 1.9) * shake_px

@@ -98,7 +98,7 @@ def render_video(
             # bbox). Shares camera_rect with ken_burns_frame — anchored by
             # construction.
             plx_out = render_parallax_overlay(
-                panel_img_path, speaker_bbox, tmp / f"parallax_p{panel_id}.mov", duration,
+                panel_img_path, speaker_bbox, tmp / f"parallax_p{panel_id}.webm", duration,
                 zoom_factor=KEN_BURNS_ZOOM_FACTOR,
                 pan_fraction=KEN_BURNS_PAN_FRACTION,
                 scale_up=PARALLAX_SCALE, shift_px=PARALLAX_SHIFT,

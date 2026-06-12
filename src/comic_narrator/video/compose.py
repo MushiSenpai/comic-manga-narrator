@@ -13,21 +13,28 @@ def compose_video(
 ):
     """Composite Ken Burns background with parallax speaker overlay and audio.
 
-    parallax_overlay is an alpha-carrying intermediate (ProRes 4444 .mov);
-    pass None to skip the overlay. audio_offset_sec seeks into the narration
-    so each panel clip carries its own slice of the mix — without it, every
-    concatenated panel restarts the narration from 0:00.
+    parallax_overlay is an alpha-carrying intermediate (VP9 .webm,
+    yuva420p); pass None to skip the overlay. audio_offset_sec seeks into the
+    narration so each panel clip carries its own slice of the mix — without
+    it, every concatenated panel restarts the narration from 0:00.
     """
     import subprocess
 
     audio_in = ["-ss", f"{audio_offset_sec:.3f}", "-i", str(narration_wav)]
 
     if parallax_overlay and parallax_overlay.exists():
+        # VP9 alpha must be decoded with libvpx-vp9 explicitly, or the alpha
+        # plane is silently dropped and the overlay renders opaque.
+        overlay_in = (
+            ["-c:v", "libvpx-vp9", "-i", str(parallax_overlay)]
+            if str(parallax_overlay).endswith(".webm")
+            else ["-i", str(parallax_overlay)]
+        )
         # Overlay parallax on Ken Burns
         cmd = [
             "ffmpeg", "-y",
             "-i", str(ken_burns_mp4),
-            "-i", str(parallax_overlay),
+            *overlay_in,
             *audio_in,
             "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto[outv]",
             "-map", "[outv]",

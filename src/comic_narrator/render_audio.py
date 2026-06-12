@@ -215,7 +215,9 @@ def render_audio(
                 silent_durations.get(e.panel_id, 0.0) + (e.duration_sec or 0.0)
             )
     for panel_id, dur in silent_durations.items():
-        dur = max(dur, PACING["silent_min"])
+        # Clamp to [silent_min, silent_max]: a wordless panel is a brief beat,
+        # never a long dwell from accumulated placeholder event durations.
+        dur = min(max(dur, PACING["silent_min"]), PACING["silent_max"])
         silent_wav = wav_dir / f"silent_p{panel_id}.wav"
         tts._write_silence(silent_wav, duration_sec=dur)
         event_files.append({

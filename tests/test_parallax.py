@@ -68,12 +68,23 @@ def test_camera_punch_in_ends_on_speaker():
     bbox = (500, 800, 200, 220)
     x0, y0, w0, h0 = camera_rect(0, 36, iw, ih, speaker_bbox=bbox)
     x1, y1, w1, h1 = camera_rect(35, 36, iw, ih, speaker_bbox=bbox)
-    # Camera zoomed in...
+    # Camera eased in...
     assert w1 < w0 and h1 < h0
-    # ...and the speaker center sits at the final frame center
-    scx, scy = bbox[0] + bbox[2] / 2, bbox[1] + bbox[3] / 2
-    assert abs((x1 + w1 / 2) - scx) < 2.0
-    assert abs((y1 + h1 / 2) - scy) < 2.0
+    # ...the speaker stays within the final frame WITH MARGIN (whole body),
+    # i.e. the crop is never tighter than the padded subject.
+    assert w1 >= bbox[2] and h1 >= bbox[3]
+    # ...and the move is gentle: never tighter than max_zoom (1.5×).
+    assert w0 / w1 <= 1.5 + 1e-6
+
+
+def test_camera_large_speaker_barely_zooms():
+    """A speaker already filling most of the panel must NOT trigger a hard
+    push-in — the whole panel stays framed."""
+    iw, ih = 1200, 1800
+    big = (150, 300, 900, 1200)  # fills most of the frame
+    _, _, w0, _ = camera_rect(0, 36, iw, ih, speaker_bbox=big)
+    _, _, w1, _ = camera_rect(35, 36, iw, ih, speaker_bbox=big)
+    assert w0 / w1 < 1.15, "large speaker should barely zoom"
 
 
 def test_camera_no_speaker_gentle_zoom():
@@ -86,23 +97,26 @@ def test_camera_no_speaker_gentle_zoom():
 # ── overlay behavior ────────────────────────────────────────────────────
 
 def test_no_bbox_returns_none(tmp_path):
-    out = render_parallax_overlay(TEST_PAGE, None, tmp_path / "p.mov", DUR)
+    out = render_parallax_overlay(TEST_PAGE, None, tmp_path / "p.webm", DUR)
     assert out is None
 
 
 def test_degenerate_bbox_returns_none(tmp_path):
     # Entirely outside the 1200x1800 image
-    out = render_parallax_overlay(TEST_PAGE, (5000, 5000, 100, 100), tmp_path / "p.mov", DUR)
+    out = render_parallax_overlay(TEST_PAGE, (5000, 5000, 100, 100), tmp_path / "p.webm", DUR)
     assert out is None
 
 
-def test_overlay_is_prores_4444_with_alpha(tmp_path):
-    out = render_parallax_overlay(TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS)
+def test_overlay_is_vp9_and_small(tmp_path):
+    out = render_parallax_overlay(TEST_PAGE, BBOX, tmp_path / "p.webm", DUR, fps=FPS)
     assert out is not None and out.exists()
     stream = _probe_video(out)["streams"][0]
-    assert stream["codec_name"] == "prores"
-    assert stream["pix_fmt"].startswith("yuva444p"), "overlay must carry an alpha plane"
-    assert int(stream["nb_read_frames"]) == round(DUR * FPS)
+    assert stream["codec_name"] == "vp9"
+    # VP9 .webm is dramatically smaller than the old ProRes 4444 intermediate
+    # (a 1.5s overlay was ~MBs as ProRes; VP9 alpha is tens of KB). The alpha
+    # plane is verified by the compose round-trip test below — ffprobe does
+    # not surface webm alpha in pix_fmt, so we don't assert on that string.
+    assert out.stat().st_size < 5_000_000, "VP9 alpha overlay should be small"
 
 
 def test_overlay_anchored_to_background(tmp_path):
@@ -112,7 +126,7 @@ def test_overlay_anchored_to_background(tmp_path):
     kb = tmp_path / "kb.mp4"
     ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS, speaker_bbox=BBOX)
     plx = render_parallax_overlay(
-        TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS, scale_up=1.0, shift_px=0
+        TEST_PAGE, BBOX, tmp_path / "p.webm", DUR, fps=FPS, scale_up=1.0, shift_px=0
     )
     wav = _silent_wav(tmp_path / "s.wav")
     out_with = tmp_path / "with.mp4"
@@ -154,7 +168,7 @@ def test_compose_with_overlay_changes_output(tmp_path):
     kb = tmp_path / "kb.mp4"
     ken_burns_frame(TEST_PAGE, kb, DUR, fps=FPS, speaker_bbox=BBOX)
     plx = render_parallax_overlay(
-        TEST_PAGE, BBOX, tmp_path / "p.mov", DUR, fps=FPS, scale_up=1.08, shift_px=12
+        TEST_PAGE, BBOX, tmp_path / "p.webm", DUR, fps=FPS, scale_up=1.08, shift_px=12
     )
     wav = _silent_wav(tmp_path / "s.wav")
     out_with = tmp_path / "with.mp4"
