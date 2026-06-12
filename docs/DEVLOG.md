@@ -490,3 +490,32 @@ break it down — you decide." Inspection rewrote the question entirely:
   one episode overnight is the sane cadence, not a 14-day monolith.
 - Licensed content: all Solo Leveling artifacts live under
   /data/ai/03-data/comic-narrator-private/, never the public repo.
+
+### Stress test result — Solo Leveling episode 0 (3 strips → 13 panels → 4:15 MP4)
+
+After the four fixes, the slice rendered clean. What it proved and revealed:
+
+**Worked:**
+- Nemotron OCR on real webtoon art is solid: read "GATE", "DUNGEON",
+  "HUNTER", and the protagonist intro "MY NAME IS SUNG JIN-WOO" (minor OCR
+  slips: "SLING", "DLUNGEON" — legible, not blocking).
+- 23 characters detected across 13 panels; 6 distinct voices assigned;
+  book-level cast persistence (B3) kept them consistent across panels.
+- Disk fix held: per-panel ProRes intermediates (multi-GB) now land on the
+  data disk; whole render peaked well within budget.
+
+**New findings (logged, not yet fixed):**
+- *Over-long silent spans:* a run of wordless action panels accumulated ~48s
+  of silent screen time between captions (SRT entry 3: 0:11→0:59). Webtoon
+  action beats are mostly art; `silent_min` per tall panel stacks up. Needs a
+  webtoon-aware cap on consecutive silent panel time.
+- *Crowd-scene cast explosion:* 23 "characters" from 3 strips includes
+  `hand_A`, `monster_A`, `background_soldier`... Over a full series the cast
+  map would balloon to hundreds. Voice assignment only needs *speaking*
+  characters — the cast map should filter to those with dialogue.
+- *ProRes intermediate size:* ~3GB per 16s panel × ~20.5k panels is
+  untenable for a full-series batch — switch the alpha intermediate to VP9
+  .webm (needs `-c:v libvpx-vp9` on the compose decode side) before scaling.
+
+Verdict: webtoon format is correct end-to-end; remaining work is scale
+hygiene (Track F + D3), not capability.

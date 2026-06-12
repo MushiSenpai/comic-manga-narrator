@@ -95,6 +95,9 @@ strip per "page", thousands of px tall, no panel grid.
 | F4 | Episode-boundary detection (no bookmarks in the wild PDF) — auto-split 4684 strips into 179 episodes | ⬜ for batch automation |
 | F5 | Reading-cadence camera for webtoons: vertical pan within tall segments instead of panel punch-in | ⬜ webtoons read by scrolling, not cutting |
 | F6 | Throughput: ~20.5k panels = ~14 days at current speed — D3 concurrency is a prerequisite for whole-series runs | ⬜ |
+| F7 | Webtoon-aware silent cap: runs of wordless action panels stack `silent_min` into ~48s dead air — cap consecutive silent screen time | ⬜ stress test finding |
+| F8 | Speaking-only cast filter: a 3-strip slice detected 23 "characters" (hand_A, monster_A...); voice map should keep only characters with dialogue | ⬜ stress test finding |
+| F9 | VP9 .webm alpha intermediate instead of ProRes 4444 (~3GB/16s panel × 20.5k panels is untenable at series scale) | ⬜ stress test finding |
 
 ## Track D — Ops / scale
 
