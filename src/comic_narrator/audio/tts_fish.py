@@ -67,6 +67,8 @@ class FishSpeechTTS:
         output_path: Path,
         speed: float = 1.0,
         emotion: str = "",
+        temperature: float = 0.7,
+        top_p: float = 0.7,
     ) -> float:
         """Submit TTS job, poll until finished, copy WAV. Returns duration_sec."""
         if not self.health_check():
@@ -79,6 +81,8 @@ class FishSpeechTTS:
                 "text": text,
                 "voice_profile": self.resolve_profile(voice_id, emotion),
                 "speed": str(speed),
+                "temperature": str(temperature),
+                "top_p": str(top_p),
             },
             timeout=30,
         )

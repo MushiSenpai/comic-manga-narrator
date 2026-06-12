@@ -519,3 +519,26 @@ After the four fixes, the slice rendered clean. What it proved and revealed:
 
 Verdict: webtoon format is correct end-to-end; remaining work is scale
 hygiene (Track F + D3), not capability.
+
+## Session 10 — review feedback: camera, pacing, expressiveness
+
+Watched the Solo Leveling ep0 sample. Three fixes + one honest limit:
+- **Camera** (headline): old logic targeted "speaker fills 45% of frame" and
+  capped zoom at 2.2× — it cropped into faces and felt artificial. Rewritten
+  to a margin-based target (subject padded 60% → whole body always visible),
+  zoom capped at 1.5×, large speakers barely move, only small-in-large
+  speakers get a real ease-in. No speaker → whole panel.
+- **F7 dwell + "one word repeating":** root-caused to visual_sfx
+  over-detection — a busy panel emitted a dozen sequential one-shots,
+  dwelling 30s+ and repeating the same resolved clip. Capped to 2/panel;
+  wordless silent beds clamped to [silent_min, silent_max].
+- **F9:** parallax overlay ProRes 4444 (~3GB/16s) → VP9 .webm alpha
+  (tens of KB). Alpha verified by compose round-trip (ffprobe hides webm
+  alpha in pix_fmt — exactly the "silently opaque" trap, avoided by the
+  explicit -c:v libvpx-vp9 decode flag).
+- **Voice "lifeless"** (honest): wired Fish Speech `temperature`/`top_p`
+  (were flat 0.7 defaults) through gateway→worker→render_audio, mapped per
+  tone (shouts 0.98, whispers 0.70, neutral 0.85). This adds prosodic
+  *variation*, not *acting*. Documented the real ceiling and the two paths
+  (emotion-variant references — now the top voice priority — or an
+  expressive TTS model swap). See VOICES.md "honest ceiling".

@@ -121,3 +121,35 @@ than the 8 currently cloned.
 
 Self-test: a bank voice used as its own reference ranks itself first at
 distance ~0.005.
+
+## Voice expressiveness — the honest ceiling (review feedback: "lifeless")
+
+Direct review feedback: the voices are flat — no acting, no emphasis, just a
+voice reading words. That's a fair read of where Fish Speech 1.5 sits, and
+it's worth being precise about what is and isn't fixable:
+
+**What was improved (real, shipped):** Fish Speech exposes `temperature` and
+`top_p`, which were sitting at flat defaults (0.7/0.7). These drive *prosodic
+variation* — pitch/rhythm movement within a line. They're now wired through
+the whole stack (gateway → worker → Fish Speech) and mapped per tone: shouts
+and excitement get high temperature (0.98) for energetic, varied delivery;
+whispers and sadness get low (0.70) for restraint. Even neutral lines are
+bumped to 0.85 so they aren't dead monotone. This genuinely adds life.
+
+**What it is NOT:** prosodic variation is not *acting*. The model still does
+not understand the scene, land a punchline, or put real feeling behind
+"I will become the strongest hunter." That is a model-capability frontier,
+and Fish Speech 1.5 is a voice-*cloning* model, not an expressive/acting one.
+
+**The two real paths to actual acting, in order of effort:**
+1. *Emotion-variant reference clips (B2, mechanism already built).* Fish
+   Speech clones the *affect* of its reference. Today every reference is a
+   calm reading, so every clone is calm. Give a voice an `__angry.wav`
+   reference recorded with real anger and that character shouts with anger.
+   This needs a source of emotive clips — LibriTTS-R audiobook segments carry
+   acted emotion (CC BY 4.0); the NC emotion corpora (RAVDESS/ESD) are off
+   limits. This is the highest-leverage next step and the honest answer to
+   "make them act."
+2. *A more expressive TTS model.* Newer open models with explicit emotion/
+   style control would replace Fish Speech at the gateway. Bigger lift
+   (stack-level swap), but the real ceiling-raiser.

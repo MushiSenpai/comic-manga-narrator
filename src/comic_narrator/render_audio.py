@@ -12,16 +12,25 @@ from comic_narrator.audio.mixer import mix_audio
 from comic_narrator.config import VOICE_BANK_DIR, SFX_CACHE_DIR, SFX_MAP_PATH, PACING
 
 
-# B1 — tone → (speed multiplier, gain dB). Pass 2 emits tone per dialogue;
-# Fish Speech follows speed, the mixer applies gain.
+# B1 — tone → (speed mult, gain dB, temperature, top_p). speed/gain shape
+# pace+volume; temperature/top_p drive PROSODIC VARIATION (higher = livelier,
+# less monotone — the real lever against "lifeless" delivery). The baseline
+# (no tone) is bumped to 0.85/0.85 from Fish Speech's flat 0.7 default so
+# even neutral lines have some life. Honest ceiling: this varies prosody, it
+# does not "act" — true acting needs emotion-variant reference clips (B2).
 TONE_DELIVERY = {
-    "shouting":   (1.10, 4.0),
-    "loud":       (1.05, 3.0),
-    "whispering": (0.88, -6.0),
-    "nervous":    (1.06, 0.0),
-    "dismissive": (0.95, -1.0),
-    "confident":  (1.00, 1.0),
+    "":           (1.00, 0.0,  0.85, 0.85),
+    "shouting":   (1.12, 4.0,  0.98, 0.95),
+    "loud":       (1.06, 3.0,  0.92, 0.92),
+    "excited":    (1.10, 2.0,  0.98, 0.95),
+    "angry":      (1.08, 3.0,  0.95, 0.92),
+    "whispering": (0.86, -6.0, 0.70, 0.80),
+    "nervous":    (1.08, 0.0,  0.90, 0.90),
+    "sad":        (0.90, -2.0, 0.72, 0.82),
+    "dismissive": (0.94, -1.0, 0.80, 0.85),
+    "confident":  (1.00, 1.0,  0.85, 0.88),
 }
+TONE_DELIVERY_DEFAULT = TONE_DELIVERY[""]
 
 # Comics lettering is ALL CAPS by convention; TTS engines read caps as
 # spelled-out letters or robotic emphasis. Interjections are expressions,
@@ -126,11 +135,13 @@ def render_audio(
     event_files: list[dict] = []
     for ev in tts_events:
         out_wav = wav_dir / f"{ev['event_id']}.wav"
-        speed, gain_db = TONE_DELIVERY.get(ev.get("tone", ""), (1.0, 0.0))
+        speed, gain_db, temperature, top_p = TONE_DELIVERY.get(
+            ev.get("tone", ""), TONE_DELIVERY_DEFAULT)
         emotion = TONE_EMOTION.get(ev.get("tone", ""), "")
         try:
             tts.synthesize(normalize_tts_text(ev["text"]), ev["voice_id"], out_wav,
-                           speed=speed, emotion=emotion)
+                           speed=speed, emotion=emotion,
+                           temperature=temperature, top_p=top_p)
             event_files.append({**ev, "wav_path": out_wav, "gain_db": gain_db})
         except Exception as e:
             print(f"  [WARN] TTS failed for {ev['event_id']}: {e}")
