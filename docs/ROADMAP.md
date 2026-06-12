@@ -82,6 +82,20 @@ birds should sound like a harbor with gulls.
 | E4 | Dialogue ducking | ✅ 2026-06-11: beds drop 5dB under speech (120ms margins); lower ambient a further 4-6dB under dialogue/caption spans (pydub gain automation) so beds never fight the voices |
 | E5 | Curated `sfx_map.yaml` growth | ✅ 2026-06-12: 12 common cues pinned to name-validated CC0 Freesound IDs; pin known-good Freesound IDs for the common cues (waves, wind, crowd, rain, seagulls) — text search top-hit is a lottery |
 
+## Track F — Webtoon / vertical-scroll (Solo Leveling class)
+
+Vertical-scroll webtoons are a different medium from paged comics: one tall
+strip per "page", thousands of px tall, no panel grid.
+
+| # | Item | Status |
+|---|---|---|
+| F1 | Native-res strip extraction (300-DPI render OOMs on tall strips) | ✅ webtoon.py extract_strips_native |
+| F2 | Vertical gutter slicing → readable panel segments (cap + stride fallback) | ✅ 8 strips → 35 legible panels verified |
+| F3 | Auto-detect webtoon PDFs (median h/w ≥ 2.5) + `--webtoon` / `--first-page`/`--last-page` | ✅ wired |
+| F4 | Episode-boundary detection (no bookmarks in the wild PDF) — auto-split 4684 strips into 179 episodes | ⬜ for batch automation |
+| F5 | Reading-cadence camera for webtoons: vertical pan within tall segments instead of panel punch-in | ⬜ webtoons read by scrolling, not cutting |
+| F6 | Throughput: ~20.5k panels = ~14 days at current speed — D3 concurrency is a prerequisite for whole-series runs | ⬜ |
+
 ## Track D — Ops / scale
 
 | # | Item | Notes |

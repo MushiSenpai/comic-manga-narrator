@@ -36,8 +36,26 @@ def split_pdf(pdf_path: Path, pages_dir: Path, dpi: int = PAGE_DPI) -> list[Path
 
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
 
+# Page range for webtoon ingestion (set by narrate_book before collect_pages).
+_WEBTOON_RANGE: dict = {}
 
-def collect_pages(input_path: Path, pages_dir: Path, dpi: int = PAGE_DPI) -> list[Path]:
+
+def is_webtoon_pdf(pdf_path: Path, sample: int = 20, ratio_threshold: float = 2.5) -> bool:
+    """Heuristic: a PDF is a vertical-scroll webtoon if its pages are much
+    taller than wide (median height/width over a sample exceeds threshold)."""
+    import fitz, statistics
+    with fitz.open(pdf_path) as doc:
+        n = len(doc)
+        idxs = range(0, n, max(1, n // sample))
+        ratios = [doc[i].rect.height / doc[i].rect.width
+                  for i in idxs if doc[i].rect.width]
+    return bool(ratios) and statistics.median(ratios) >= ratio_threshold
+
+
+def collect_pages(
+    input_path: Path, pages_dir: Path, dpi: int = PAGE_DPI,
+    webtoon: bool | None = None,
+) -> list[Path]:
     """Turn whatever got dumped on us into an ordered list of page images.
 
     Accepts: a PDF (rendered at dpi), a CBZ/ZIP comic archive (image members
@@ -51,6 +69,17 @@ def collect_pages(input_path: Path, pages_dir: Path, dpi: int = PAGE_DPI) -> lis
     suffix = input_path.suffix.lower()
 
     if suffix == ".pdf":
+        # Webtoons (tall vertical strips) need native-res extraction + panel
+        # slicing, not a 300-DPI page render that would OOM. Auto-detect
+        # unless the caller forced the mode.
+        use_webtoon = webtoon if webtoon is not None else is_webtoon_pdf(input_path)
+        if use_webtoon:
+            from comic_narrator.webtoon import webtoon_to_panels
+            return webtoon_to_panels(
+                input_path, pages_dir.parent,
+                first_page=_WEBTOON_RANGE.get("first", 1),
+                last_page=_WEBTOON_RANGE.get("last"),
+            )
         return split_pdf(input_path, pages_dir, dpi=dpi)
 
     pages_dir.mkdir(parents=True, exist_ok=True)
@@ -201,6 +230,9 @@ def narrate_book(
     freesound_api_key: str = "",
     vision_only: bool = False,
     lang: str = "en",
+    webtoon: bool | None = None,
+    first_page: int = 1,
+    last_page: int | None = None,
     progress_callback=None,
 ) -> list[Path]:
     """PDF book → one narrated MP4 per chapter.
@@ -219,10 +251,13 @@ def narrate_book(
         voice_bank_dir = VOICE_BANK_DIR
 
     import json as _json
+    _wt_first, _wt_last = first_page, last_page
 
     output_path = Path(output_path)
     work_root = output_path.parent / f"{output_path.stem}-work"
-    page_images = collect_pages(Path(pdf_path), work_root / "pages")
+    _WEBTOON_RANGE["first"] = _wt_first
+    _WEBTOON_RANGE["last"] = _wt_last
+    page_images = collect_pages(Path(pdf_path), work_root / "pages", webtoon=webtoon)
     n_pages = len(page_images)
     print(f"Book: {n_pages} pages → {work_root}")
 

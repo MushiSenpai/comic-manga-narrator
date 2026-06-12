@@ -461,3 +461,32 @@ demos on v0.1.0/v0.7.0 remain) and removed the real-page fixture from the
 tree (archived privately at /data/ai/03-data/comic-narrator-private/).
 NOTE: the fixture still exists in git HISTORY until a history purge is
 authorized — tracked as the remaining publication-gate item.
+
+## Session 9 — webtoon ingestion + the Solo Leveling scale decision
+
+Handed a 1.4GB "Solo Leveling Complete 0-179.pdf" with "run it together or
+break it down — you decide." Inspection rewrote the question entirely:
+
+- **It's not 179 pages — it's 4,684 vertical webtoon strips** (≈26 per
+  episode). Median strip 720×3000px; 560 strips exceed 8,000px; tallest
+  **43,200px**. No bookmarks marking episode boundaries.
+- **Three independent ways the page pipeline would fail this file:**
+  1. *Ingestion OOM:* `split_pdf` renders at 300 DPI — a tall strip explodes
+     to hundreds of megapixels. Webtoons must be extracted at NATIVE res.
+  2. *Vision blindness:* a 720×3000 strip fed to the vision encoder
+     downscales lettering to mush. Strips must be sliced into panel-height
+     segments first.
+  3. *Scale:* projected **~20,500 panels → ~14 days of continuous GPU** at
+     current speed; ~17GB just for native strip PNGs.
+- **Decision (mine to make, per the user): do NOT run it whole, and do not
+  naively batch it.** Built `webtoon.py`: native-res extraction + horizontal
+  whitespace-gutter slicing (cap MAX_SEGMENT_H=1600, fixed-stride fallback
+  for gutterless action runs, drop blank/runt segments). Auto-detected for
+  tall PDFs (`is_webtoon_pdf`, median h/w ≥ 2.5) or forced with `--webtoon`;
+  `--first-page/--last-page` scope a run to one episode.
+- **Validated on real strips:** 8 Solo Leveling strips → 35 clean panels in
+  3.4s; the opening "GATE" title card sliced with text fully legible. The
+  episode is the natural processing unit (~26 strips → ~115 panels → ~2h);
+  one episode overnight is the sane cadence, not a 14-day monolith.
+- Licensed content: all Solo Leveling artifacts live under
+  /data/ai/03-data/comic-narrator-private/, never the public repo.

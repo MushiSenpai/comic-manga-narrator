@@ -35,6 +35,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--from-page-json", help="Skip Phase 1, use existing page.json")
     parser.add_argument("--from-script-json", help="Skip Phases 1-2, use existing script.json")
     parser.add_argument("--chapter-pages", help="Comma-separated page numbers for chapter splits")
+    parser.add_argument("--webtoon", dest="webtoon", action="store_true", default=None,
+                        help="Force vertical-scroll webtoon ingestion (native-res strips → panel slices). Auto-detected for tall PDFs.")
+    parser.add_argument("--no-webtoon", dest="webtoon", action="store_false",
+                        help="Force normal page rendering even for tall PDFs.")
+    parser.add_argument("--first-page", type=int, default=1, help="Book: first page (1-based)")
+    parser.add_argument("--last-page", type=int, default=None, help="Book: last page (inclusive)")
     parser.add_argument("--vision-only", action="store_true",
                         help="Run Phases 1-2 only (page/script JSONs) — the Nemotron pass of the two-pass VRAM flow")
     parser.add_argument("--aspect", choices=["letterbox", "vertical-shorts"], default="letterbox")
@@ -86,6 +92,9 @@ def main() -> None:
             narrator_voice_id=args.narrator_voice,
             freesound_api_key=freesound_key,
             vision_only=args.vision_only,
+            webtoon=args.webtoon,
+            first_page=args.first_page,
+            last_page=args.last_page,
         )
         for o in outputs:
             print(f"  Output: {o}")
