@@ -112,3 +112,22 @@ def test_lang_aware_voice_matching():
     assert match_voice(["female", "adult"], "human", bank, lang="ja") == "ja_f_fourties_y"
     # English page: legacy rules still pick the en archetype
     assert match_voice(["male", "young"], "human", bank, lang="en") == "male_young_bright"
+
+
+def test_en_cast_diversity_on_collision():
+    from comic_narrator.audio.voice_bank import match_voice
+    from comic_narrator.schemas import VoiceProfile
+    def vp(vid, **kw):
+        base = dict(gender="male", age_approx="adult", pitch_category="low",
+                    timbre_tags=["gruff"], voice_type="human")
+        base.update(kw)
+        return VoiceProfile(voice_id=vid, **base)
+    bank = {
+        "male_adult_gruff": vp("male_adult_gruff"),
+        "male_adult_warm": vp("male_adult_warm", timbre_tags=["warm"]),
+    }
+    # Second gruff male: rules pick male_adult_gruff, but it's taken →
+    # the best free English profile wins instead
+    got = match_voice(["male", "adult"], "human", bank,
+                      lang="en", exclude={"male_adult_gruff"})
+    assert got == "male_adult_warm"

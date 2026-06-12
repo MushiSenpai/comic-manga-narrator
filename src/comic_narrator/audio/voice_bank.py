@@ -150,12 +150,30 @@ def match_voice(
                 # Type match without attr match
                 return vid
 
-    # Standard attribute matching
+    # Standard attribute matching (English archetype rules)
+    chosen = DEFAULT_FALLBACK_VOICE
     for rule_attrs, voice_id in VOICE_MATCH_RULES:
         if all(a in attrs_lower for a in [ra.lower() for ra in rule_attrs]):
-            return voice_id
+            chosen = voice_id
+            break
 
-    return DEFAULT_FALLBACK_VOICE
+    # Cast diversity for English too (bug 10 parity): if the rule landed on
+    # an already-used voice and the bank has unused English profiles, take
+    # the best-scoring free one instead — two gruff sailors should not share
+    # a voice just because the rules tie.
+    if exclude and chosen in exclude and voice_bank:
+        lang_prefixes = ("ja_",)  # non-English banks live under lang prefixes
+        free = [
+            p for vid, p in voice_bank.items()
+            if vid not in exclude
+            and not vid.startswith(lang_prefixes)
+            and not vid.startswith("_")
+            and p.voice_type == voice_type
+        ]
+        if free:
+            chosen = max(free, key=lambda p: _score_profile(p, attrs_lower)).voice_id
+
+    return chosen
 
 
 def resolve_cast_members(
