@@ -7,7 +7,7 @@ from pathlib import Path
 from comic_narrator.schemas import PageAnalysis, Timing
 from comic_narrator.video.ken_burns import ken_burns_frame, render_page_overview
 from comic_narrator.video.parallax import render_parallax_overlay
-from comic_narrator.video.compose import compose_video, concat_videos
+from comic_narrator.video.compose import compose_video, concat_videos, mux_audio_once
 from comic_narrator.config import (
     KEN_BURNS_ZOOM_FACTOR, KEN_BURNS_PAN_FRACTION,
     PARALLAX_SCALE, PARALLAX_SHIFT,
@@ -84,44 +84,47 @@ def render_video(
                 page.save(panel_img_path)
                 speaker_bbox = None
 
+            # Camera: ALWAYS the whole panel with a gentle drift — review
+            # verdict was that zooming "works in one scene and not the next";
+            # the speaker is indicated with a spotlight halo overlay instead.
             kb_out = tmp / f"kenburns_p{panel_id}.mp4"
             ken_burns_frame(
                 panel_img_path, kb_out, duration,
                 zoom_factor=KEN_BURNS_ZOOM_FACTOR,
                 pan_fraction=KEN_BURNS_PAN_FRACTION,
                 width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS,
-                speaker_bbox=speaker_bbox,
+                speaker_bbox=None,
                 pacing_hint=pacing_hint,
             )
 
-            # Parallax overlay (None when the panel has no usable speaker
-            # bbox). Shares camera_rect with ken_burns_frame — anchored by
-            # construction.
+            # Speaker spotlight halo (None when no usable speaker bbox).
             plx_out = render_parallax_overlay(
-                panel_img_path, speaker_bbox, tmp / f"parallax_p{panel_id}.webm", duration,
+                panel_img_path, speaker_bbox, tmp / f"halo_p{panel_id}.webm", duration,
                 zoom_factor=KEN_BURNS_ZOOM_FACTOR,
                 pan_fraction=KEN_BURNS_PAN_FRACTION,
-                scale_up=PARALLAX_SCALE, shift_px=PARALLAX_SHIFT,
                 width=VIDEO_WIDTH, height=VIDEO_HEIGHT, fps=VIDEO_FPS,
                 pacing_hint=pacing_hint,
             )
 
             if plx_out:
-                print(f"  Panel {panel_id}: parallax overlay applied")
+                print(f"  Panel {panel_id}: speaker halo applied")
 
-            # Composite panel with its slice of the narration mix
+            # Composite panel — VIDEO ONLY; narration is muxed once below.
             panel_out = tmp / f"panel_p{panel_id}.mp4"
-            compose_video(
-                kb_out, plx_out, narration_wav, panel_out,
-                audio_offset_sec=entry.start_sec,
-            )
+            compose_video(kb_out, plx_out, None, panel_out, video_only=True)
             panel_clips.append(panel_out)
 
-        # Concatenate all panels
+        # Concatenate the silent video, then mux the page narration ONCE,
+        # delayed past the establishing shot. (Per-clip AAC slicing left
+        # boundary clicks and dead spans — see compose.mux_audio_once.)
+        silent_concat = tmp / "page_video_only.mp4"
         if len(panel_clips) == 1:
             import shutil
-            shutil.copy(panel_clips[0], output_path)
+            shutil.copy(panel_clips[0], silent_concat)
         else:
-            concat_videos(panel_clips, output_path)
+            concat_videos(panel_clips, silent_concat)
+        delay = PAGE_OVERVIEW_SEC if (PAGE_OVERVIEW_SEC > 0 and timing.entries) else 0.0
+        mux_audio_once(silent_concat, narration_wav, output_path,
+                       audio_delay_sec=delay)
 
     return output_path

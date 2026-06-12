@@ -73,6 +73,11 @@ def mix_audio(
 
         # Apply mix level + per-event gain (tone-driven)
         kind = ev.get("kind", "dialogue")
+        # SFX one-shots are punctuation, not screen-time drivers: trim to a
+        # short hit so three action cues don't stretch a panel to ~19s
+        # (review: "why is this clip going on forever?"). Fade the tail.
+        if kind == "sfx" and len(seg) > 2500:
+            seg = seg[:2500].fade_out(250)
         db = MIX_LEVELS.get(kind, 0.0) + float(ev.get("gain_db", 0.0))
         if db != 0.0:
             seg = seg + db

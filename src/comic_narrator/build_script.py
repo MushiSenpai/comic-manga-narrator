@@ -184,7 +184,7 @@ def build_script(
         # Cap at 2 per panel: a busy action panel can yield a dozen visual
         # cues; played as sequential one-shots they dwell the panel for 30s+
         # (and often repeat the same resolved clip). Two is plenty of texture.
-        for vsfx in panel.visual_sfx[:2]:
+        for vsfx in panel.visual_sfx[:3]:
             event_counter += 1
             events.append(ScriptEvent(
                 event_id=f"vsx_{event_counter:03d}",
