@@ -267,7 +267,9 @@ def narrate_book(
         _json.loads(cast_map_path.read_text()) if cast_map_path.exists() else {}
     )
 
-    page_videos: list[Path] = []
+    # Keyed by page NUMBER (not append order) so a failed page doesn't shift
+    # every later page's index in the chapter-assembly step.
+    page_video_by_num: dict[int, Path] = {}
     failed_pages: dict[int, str] = {}
     for idx, page_image in enumerate(page_images, start=1):
         work_dir = work_root / f"page_{idx:04d}"
@@ -295,7 +297,7 @@ def narrate_book(
                 cast_map.setdefault(m["character_id"], m["voice_id"])
             cast_map_path.write_text(_json.dumps(cast_map, indent=2))
         if video is not None:
-            page_videos.append(video)
+            page_video_by_num[idx] = video
         if progress_callback:
             progress_callback(idx, n_pages)
 
@@ -317,14 +319,19 @@ def narrate_book(
             chapter_out = output_path.with_name(
                 f"{output_path.stem}_ch{ci:02d}{output_path.suffix}"
             )
-        clips = [page_videos[p - 1] for p in chapter]
+        # Skip pages that failed — their video isn't in the map.
+        kept = [p for p in chapter if p in page_video_by_num]
+        clips = [page_video_by_num[p] for p in kept]
+        if not clips:
+            print(f"Chapter {ci}: all pages failed, skipping")
+            continue
         if len(clips) == 1:
             shutil.copy(clips[0], chapter_out)
         else:
             concat_videos(clips, chapter_out)
         # Chapter subtitles: merge page .srt timings with cumulative offsets
         from comic_narrator.subtitles import write_book_srt, video_duration
-        timing_jsons = [work_root / f"page_{p:04d}" / "timing.json" for p in chapter]
+        timing_jsons = [work_root / f"page_{p:04d}" / "timing.json" for p in kept]
         durations = [video_duration(c) for c in clips]
         from comic_narrator.config import PAGE_OVERVIEW_SEC
         write_book_srt(timing_jsons, durations, chapter_out.with_suffix(".srt"),

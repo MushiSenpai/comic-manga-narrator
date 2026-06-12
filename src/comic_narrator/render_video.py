@@ -33,7 +33,13 @@ def render_video(
 
     page = Image.open(page_image).convert("RGB")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    # Scratch lives next to the OUTPUT, not /tmp. Video intermediates are
+    # gigabytes (a 17s ProRes 4444 alpha overlay alone is ~3GB), and /tmp is
+    # often a small tmpfs — a long webtoon panel silently exhausts it and
+    # ffmpeg dies mid-pipe (surfaced only as a bare BrokenPipeError).
+    out_parent = Path(output_path).resolve().parent
+    out_parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=out_parent) as tmpdir:
         tmp = Path(tmpdir)
 
         panel_clips: list[Path] = []

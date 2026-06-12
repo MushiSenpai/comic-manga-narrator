@@ -121,9 +121,17 @@ def render_parallax_overlay(
             frame.paste(shadow, (lx + 8, ly + 12), shadow)
 
             frame.paste(layer, (lx, ly), layer)
-            proc.stdin.write(frame.tobytes())
+            try:
+                proc.stdin.write(frame.tobytes())
+            except BrokenPipeError:
+                # ffmpeg exited early (commonly ENOSPC on the scratch disk).
+                # Surface its real stderr instead of a bare BrokenPipeError.
+                break
     finally:
-        proc.stdin.close()
+        try:
+            proc.stdin.close()
+        except BrokenPipeError:
+            pass
         stderr = proc.stderr.read()
         proc.wait()
     if proc.returncode != 0:

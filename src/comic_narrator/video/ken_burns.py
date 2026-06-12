@@ -63,9 +63,15 @@ def ken_burns_frame(
             frame = img.crop(
                 (round(x), round(y), round(x + w), round(y + h))
             ).resize((width, height), Image.LANCZOS)
-            proc.stdin.write(frame.tobytes())
+            try:
+                proc.stdin.write(frame.tobytes())
+            except BrokenPipeError:
+                break
     finally:
-        proc.stdin.close()
+        try:
+            proc.stdin.close()
+        except BrokenPipeError:
+            pass
         stderr = proc.stderr.read()
         proc.wait()
     if proc.returncode != 0:
@@ -116,9 +122,15 @@ def render_page_overview(
             scaled = page.resize((sw, sh), Image.LANCZOS)
             frame = Image.new("RGB", (width, height), (0, 0, 0))
             frame.paste(scaled, ((width - sw) // 2, (height - sh) // 2))
-            proc.stdin.write(frame.tobytes())
+            try:
+                proc.stdin.write(frame.tobytes())
+            except BrokenPipeError:
+                break
     finally:
-        proc.stdin.close()
+        try:
+            proc.stdin.close()
+        except BrokenPipeError:
+            pass
         stderr = proc.stderr.read()
         proc.wait()
     if proc.returncode != 0:
