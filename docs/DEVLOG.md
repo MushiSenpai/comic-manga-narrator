@@ -452,3 +452,12 @@ translates all speakable lines (register preserved — "おいルフィ！" beca
 translation hiccup can never block a render). Verified on the Japanese
 fixture: ja audio + ja subs + en subs from one command. Track C is now
 C1-C4 complete; C5 (raw scanned Japanese pages) awaits real content.
+
+## Session 8 — publication gate (repo went public)
+
+The repo was flipped public, triggering the documented gate: removed the
+One Piece-derived demo MP4s/srts from releases v0.2.0–v0.6.0 (synthetic-page
+demos on v0.1.0/v0.7.0 remain) and removed the real-page fixture from the
+tree (archived privately at /data/ai/03-data/comic-narrator-private/).
+NOTE: the fixture still exists in git HISTORY until a history purge is
+authorized — tracked as the remaining publication-gate item.
