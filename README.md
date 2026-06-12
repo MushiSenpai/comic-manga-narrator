@@ -77,7 +77,10 @@ festvox.org) — see DEVLOG Session 2. Add more via the gateway:
 ## Version history
 
 Every development pass is a tagged [GitHub Release](https://github.com/MushiSenpai/comic-manga-narrator/releases)
-(v0.1.0 → v0.6.0) summarizing what changed and which user feedback drove it;
+(v0.1.0 → v0.7.0) summarizing what changed and which user feedback drove it —
+**each release carries the actual demo MP4 from that era as an asset**, so you
+can watch the output evolve from first silent parallax test to full Japanese
+narration with subtitles;
 the full play-by-play — every iteration, bug, failure mode, and lesson —
 lives in [docs/DEVLOG.md](docs/DEVLOG.md), with the forward plan in
 [docs/ROADMAP.md](docs/ROADMAP.md), and the distilled
