@@ -77,3 +77,57 @@ crude geometry. The biggest quality unlock is asking Nemotron for the
 *director-level* signals (shot type, intensity, emotion, reading path) and
 letting those drive camera, sound, and voice — instead of inferring them
 downstream from bounding boxes.
+
+---
+
+# The two-stage idea (user's "double run") — YES, this is the right call
+
+> "If Kokoro/Parler produce emotion precisely, why not generate with them,
+> then clone to the character's voice with Fish Speech — emotion stays, voice
+> changes?"
+
+This is not a dumb question — it is **the established technique**, and it has
+a name: **expressive TTS → voice conversion (VC)**. It is exactly how to
+decouple *acting* from *identity*. Research confirms the pattern works
+(arXiv 2103.16809 trains emotional VC on top of TTS for this exact reason;
+Expressive-VC, arXiv 2211.04710, is built to carry prosody through the
+conversion).
+
+**How it maps to our stack — and the happy part: we already have the VC engine.**
+The audio stack ships **RVC v2** (`/data/ai/02-models/audio/rvc/`), and RVC is
+precisely a voice-conversion model: it takes *any* input audio and re-timbres
+it to a target voice **while preserving the source's pitch contour, pace, and
+emotion**. So the pipeline becomes:
+
+```
+Stage 1 — ACTING:   Parler-TTS ("a terrified young man whispering") OR an
+                    emotion-prompted model produces an EXPRESSIVE take in
+                    some generic voice. The performance lives here.
+Stage 2 — IDENTITY: RVC (or Seed-VC) converts that take to the CHARACTER's
+                    cloned timbre. Pitch/prosody/emotion of stage 1 are
+                    preserved; only the vocal identity changes.
+```
+
+The character's voice is decided by Nemotron's cast label → a target RVC
+model per character; the *emotion* is decided by the scene. Two knobs,
+independently controlled — which is exactly what "actors act" requires and
+what single-stage cloning (Fish 1.5) can't give us.
+
+**Caveats (honest):**
+- RVC preserves prosody well but can soften extreme emotion (laughs, sobs) —
+  the 2025 literature notes emotional variance is only *partially* transferred.
+  **Seed-VC v0.2** (Plachtaa/seed-vc) is the stronger modern option: explicit
+  prosody-preservation control, beats RVCv2 on similarity, real-time capable —
+  worth evaluating as the Stage-2 engine.
+- It's two model passes per line (slower, more VRAM choreography) — fine at our
+  episode-at-a-time cadence, a real cost at series scale.
+- Quality compounds: a bad Stage-1 take converts into a bad-but-on-model take.
+
+**Verdict:** this is the highest-ceiling path to "voices that act" AND stay
+on-character, and it reuses RVC we already installed. Recommended build order:
+Stage-1 = Parler-TTS (prompt-directed delivery, Apache-2.0), Stage-2 = Seed-VC
+(or RVC v2 as the already-present fallback). This supersedes "just swap Fish
+for a newer cloner" as the strategic direction.
+
+Sources: arXiv 2103.16809 (TTS→emotional VC two-stage), arXiv 2211.04710
+(Expressive-VC prosody transfer), github.com/Plachtaa/seed-vc (Seed-VC v0.2).

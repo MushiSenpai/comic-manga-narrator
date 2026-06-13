@@ -99,6 +99,25 @@ strip per "page", thousands of px tall, no panel grid.
 | F8 | Speaking-only cast filter: a 3-strip slice detected 23 "characters" (hand_A, monster_A...); voice map should keep only characters with dialogue | ⬜ stress test finding |
 | F9 | VP9 .webm alpha intermediate instead of ProRes 4444 (~3GB/16s panel × 20.5k panels is untenable at series scale) | ⬜ stress test finding |
 
+## Track G — Identity & visual grammar (review round 3)
+
+| # | Item | Status |
+|---|---|---|
+| G1 | Character identity sheet: Pass 2 emits `appearance`, receives KNOWN CAST, reuses labels for recurring people → one person = one voice | ✅ cast_sheet.json fed to vision + persisted |
+| G2 | bbox = character BODY, never the speech bubble (was zooming into chat bubbles) | ✅ prompt fixed |
+| G3 | Dialogue ordered top-to-bottom by bubble position (comic reading order) | ✅ prompt fixed |
+| G4 | Action panels with no speaker → halo the drawn SFX/impact symbol (`sfx_bbox`) | ✅ wired |
+| G5 | Zoom ONLY when a page has multiple sub-panels (whole page → push into the active box); single-panel pages stay wide | ⬜ needs sub-panel detection within a segment |
+| G6 | `shot_type` extraction drives camera (close/medium/wide) instead of geometry guessing | ⬜ TTS-RESEARCH extraction #1 |
+
+## Track H — Two-stage expressive voice (the "double run")
+
+| # | Item | Status |
+|---|---|---|
+| H1 | Stage-1 expressive TTS (Parler-TTS, prompt-directed delivery from Nemotron emotion) | ⬜ |
+| H2 | Stage-2 voice conversion to character timbre (RVC v2 already installed; eval Seed-VC v0.2) — emotion preserved, identity swapped | ⬜ |
+| H3 | Per-character target VC model keyed by the cast sheet (G1) | ⬜ depends on G1 ✅ + H2 |
+
 ## Track D — Ops / scale
 
 | # | Item | Notes |
