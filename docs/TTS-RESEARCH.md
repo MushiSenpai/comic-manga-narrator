@@ -154,3 +154,21 @@ This is why the install is a focused-session task, not an autonomous one:
 it's one careful step from breaking a working stack, and wants a human
 watching the torch version. The orchestration layer is done and falls back
 to Fish Speech, so the pipeline is unaffected until the install lands.
+
+
+---
+
+# Track H — GPU validation update (2026-06-12)
+
+Good news that de-risks the whole install: **stable `torch 2.12.0+cu130`
+runs kernels on the RTX 5090 (SM_120, capability 12.0)** — verified with a
+live GPU matmul in the isolated venv. So the two-stage models do NOT need the
+worker's nightly torch; they run in their own venv
+(`/data/ai/01-workspace/audio/two-stage/venv`) with stable cu130 torch, fully
+isolated from the production Fish Speech/WhisperX container. The "torch trap"
+is sidestepped by isolation, not by fighting the pin.
+
+Operating model (per the user's VRAM-flush policy): run ONE model at a time,
+flush between. Track H flow = flush Nemotron (free ~22GB) → run Parler
+(Stage 1) + Seed-VC (Stage 2) in the isolated venv → keep the wav → reload
+whatever's next. Prototype: two-stage/prototype.py (A/B vs Fish Speech).
