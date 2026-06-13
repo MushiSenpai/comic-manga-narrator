@@ -563,3 +563,17 @@ panels and eases gently; VP9 intermediates kept scratch in the tens of MB.
   panels. This is the is_speaking/face-point reliability gap (TTS-RESEARCH
   extraction item #4); the halo mechanism is correct, the vision signal
   feeding it is sparse. Next: ask Pass 2 for a reliable speaker + face anchor.
+
+### Session 11 verified — ep0 v4 (identity + role casting + halo)
+
+- **Character voice consistency: 0 inconsistent** (was the headline complaint).
+  Cast-sheet re-id collapsed 23 ephemeral labels → 8 tracked identities;
+  every character keeps one voice; protagonist → male_young_bright (lead).
+- **Halos 1→2**; sfx_bbox populating for action panels.
+- **Finding (Track G refinement):** supporting males pile onto
+  male_adult_gruff — the bank has only ~3 male voices, so role-distinct
+  casting exhausts the pool and falls back. Real fix = more cloned male
+  voices (the curate→clone path) and ensuring `background` role routes to
+  the background voice, not the lead fallback. Logged ROADMAP G8.
+- One Pass-2 panel returned empty JSON and was stubbed (retry-once held the
+  line) — model variance, non-blocking.

@@ -109,6 +109,7 @@ strip per "page", thousands of px tall, no panel grid.
 | G4 | Action panels with no speaker → halo the drawn SFX/impact symbol (`sfx_bbox`) | ✅ wired |
 | G5 | Zoom ONLY when a page has multiple sub-panels (whole page → push into the active box); single-panel pages stay wide | ⬜ needs sub-panel detection within a segment |
 | G6 | `shot_type` extraction drives camera (close/medium/wide) instead of geometry guessing | ⬜ TTS-RESEARCH extraction #1 |
+| G8 | Voice-pool exhaustion: only ~3 male voices → supporting males collapse to the fallback; clone more male voices + route background role to background voice | ⬜ verified v4 |
 | G7 | Role-based casting: protagonist→fixed lead voice, leads→distinct pool, background/crowd→shared voice (prominent mains, no cast explosion) | ✅ cast_voice() by Nemotron `role` |
 
 ## Track H — Two-stage expressive voice (the "double run")
