@@ -101,15 +101,16 @@ PASS2_SYSTEM = """You are a comic/manga analysis engine. Given a cropped panel i
 Output valid JSON with these rules:
 - "scene_description": 1-2 sentences describing the setting, time, weather, atmosphere.
 - "characters" (array): every visible character. For each:
-  - "label": a short unique label (e.g. "pirate_A", "luffy")
+  - "label": a short unique label. IF A "KNOWN CAST" LIST IS PROVIDED in the request, compare each character against it by appearance and REUSE the existing label for the same person — never invent a second label for someone already in the cast. Only new characters get new labels.
+  - "appearance": a short distinctive visual description for re-identification across panels (hair color/style, clothing, build — e.g. "black spiky hair, grey hoodie, slim young man")
   - "expression": what their face shows ("angry", "smiling", "shocked", ...)
   - "dominant_emotion": the primary emotion ("rage", "joy", "fear", "surprise", "sadness", "neutral")
   - "voice_attributes": [gender, age, pitch, timbre_tags...] e.g. ["male","young","loud","bright"]
   - "voice_type": "human" for people, "object" for non-human speakers (figureheads, animals, monsters, robots)
   - "is_speaking": true if this character has dialogue in this panel
   - "is_visible": true if the character appears in the panel art, false if off-panel speaker
-  - "bbox": [x, y, w, h] of the character's face/head in the panel (for parallax), null if not visible
-- "dialogues" (array): each speech bubble. For each:
+  - "bbox": [x, y, w, h] of the character's BODY in the panel art — the drawn figure only, NEVER the speech bubble or any text region; null if not visible
+- "dialogues" (array): each speech bubble, ORDERED BY READING ORDER: bubbles are read TOP TO BOTTOM (then right-to-left for manga, left-to-right for western) — order the array by the bubble's vertical position first. For each:
   - "speaker": must match a character "label"
   - "text": the exact dialogue text
   - "tone": delivery style ("shouting","whispering","dismissive","nervous","confident","neutral")
@@ -117,6 +118,7 @@ Output valid JSON with these rules:
 - "sfx_text" (array): sound effect text art (e.g. "FWAP", "BOOM", "CRASH")
 - "visual_sfx" (array): 0-3 sounds implied by VISIBLE ACTION even when the drawn sound-effect lettering is stylized/illegible — INFER THE EVENT from the art. This is the whole point of vision analysis: if something is breaking, emit a breaking sound; if a hand conjures flames or a fireball, emit fire; if a sword slashes, emit a slash; if something explodes or shatters, emit it. Examples: fireball/flames from a hand → "fire whoosh", sword/blade slash → "sword slash", punch/kick impact → "heavy impact", wall/glass/rubble breaking → "debris crash", explosion → "explosion", magic/energy cast → "magic surge", gunshot → "gunshot", monster roar → "monster roar", seagulls → "seagull cries", cow → "cow moo". Prefer ACTION sounds in fight/action panels. Only momentary sounds here; continuous background goes in ambient_cues.
 - "ambient_cues" (array): 2-5 keywords for the background soundscape implied by what is VISIBLE in the art — inventory the sound sources forensically even when nothing is written: birds in the sky → "seagulls", ship on water → "waves" and "creaking ship", flags or sails → "flapping cloth", village street → "distant chatter", forest → "rustling leaves", rain drawn → "rain"
+- "sfx_bbox": [x, y, w, h] of the dominant drawn sound-effect/action symbol (the big CRASH/FWOOSH lettering or impact flash), null if none — used to highlight the action when nobody is speaking
 - "pacing_hint": "dramatic_reveal", "quick_transition", "action_peak", or "" for normal pace
 
 Output ONLY the JSON object, no markdown, no explanation."""
@@ -292,12 +294,19 @@ class NemotronClient:
     # ── Pass 2: Per-Panel Semantic Extraction ───────────────────────
 
     def pass2_analyze_panel(
-        self, panel_image_path: Path, panel_id: int, lang: str = "en"
+        self, panel_image_path: Path, panel_id: int, lang: str = "en",
+        cast_sheet: dict[str, str] | None = None,
     ) -> PanelAnalysis:
         """Extract all semantic info from a single cropped panel image."""
+        user_text = PASS2_PROMPT.format(lang=lang)
+        if cast_sheet:
+            sheet = "\n".join(f"- {label}: {desc}" for label, desc in
+                               list(cast_sheet.items())[:20])
+            user_text += ("\n\nKNOWN CAST (reuse these labels for the same "
+                          "people — match by appearance):\n" + sheet)
         raw = self._call_nemotron(
             system_prompt=PASS2_SYSTEM,
-            user_text=PASS2_PROMPT.format(lang=lang),
+            user_text=user_text,
             image_path=panel_image_path,
             temperature=0.1,
             max_tokens=4096,
@@ -313,6 +322,7 @@ class NemotronClient:
                 char_bbox = _coerce_bbox(c["bbox"], panel_image_path)
             characters.append(Character(
                 label=c.get("label", ""),
+                appearance=str(c.get("appearance", ""))[:160],
                 expression=c.get("expression", ""),
                 dominant_emotion=c.get("dominant_emotion", ""),
                 voice_attributes=c.get("voice_attributes", []),
@@ -328,8 +338,13 @@ class NemotronClient:
             if isinstance(d, dict)
         ]
 
+        sfx_bbox = None
+        if data.get("sfx_bbox"):
+            sfx_bbox = _coerce_bbox(data["sfx_bbox"], panel_image_path)
+
         return PanelAnalysis(
             panel_id=panel_id,
+            sfx_bbox=sfx_bbox,
             scene_description=data.get("scene_description", ""),
             characters=characters,
             dialogues=dialogues,

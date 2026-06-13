@@ -18,6 +18,7 @@ def parse_page(
     image_path: Path,
     layout: str = "manga",
     lang: str = "en",
+    cast_sheet: dict[str, str] | None = None,
     voice_bank_ids: Optional[list[str]] = None,
     prior_cast: Optional[Cast] = None,
     panels_override: Optional[PagePanels] = None,
@@ -82,13 +83,13 @@ def parse_page(
             panel_img_path = extract_panel_image(image_path, panel.bbox, tmp)
 
             try:
-                analysis = client.pass2_analyze_panel(panel_img_path, panel.id, lang=lang)
+                analysis = client.pass2_analyze_panel(panel_img_path, panel.id, lang=lang, cast_sheet=cast_sheet)
             except Exception as first_err:
                 # One retry — temperature 0.1 still has output variance and a
                 # second sample usually parses. Then stub so the pipeline
                 # doesn't halt on a single bad panel.
                 try:
-                    analysis = client.pass2_analyze_panel(panel_img_path, panel.id, lang=lang)
+                    analysis = client.pass2_analyze_panel(panel_img_path, panel.id, lang=lang, cast_sheet=cast_sheet)
                     print(f"  [INFO] Pass 2 retry succeeded for panel {panel.id} (first: {first_err})")
                 except Exception as e:
                     from comic_narrator.schemas import PanelAnalysis

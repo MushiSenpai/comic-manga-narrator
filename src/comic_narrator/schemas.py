@@ -35,6 +35,7 @@ class PagePanels(BaseModel):
 class Character(BaseModel):
     """A character detected in a panel."""
     label: str
+    appearance: str = ""          # short visual description — the re-id key for the cast sheet
     expression: str = ""
     dominant_emotion: str = ""
     voice_attributes: list[str] = Field(default_factory=list)  # e.g. ["male","young","loud"]
@@ -60,6 +61,7 @@ class PanelAnalysis(BaseModel):
     captions: list[str] = Field(default_factory=list)
     sfx_text: list[str] = Field(default_factory=list)
     visual_sfx: list[str] = Field(default_factory=list)  # sounds implied by visible action (E3)
+    sfx_bbox: Optional[BBox] = None  # dominant action/SFX symbol — halo target when nobody speaks
     ambient_cues: list[str] = Field(default_factory=list)
     pacing_hint: str = ""  # "dramatic_reveal" | "quick_transition" | ...
 

@@ -150,6 +150,7 @@ def narrate_page_resumable(
     vision_only: bool = False,
     lang: str = "en",
     prior_voice_map: dict[str, str] | None = None,
+    cast_sheet: dict[str, str] | None = None,
 ) -> Path | None:
     """Run phases 1-4 for one page, skipping any phase whose output exists.
 
@@ -179,8 +180,15 @@ def narrate_page_resumable(
     if page_json.exists():
         page_analysis = PageAnalysis(**json.loads(page_json.read_text()))
     else:
-        page_analysis = parse_page(page_image, layout=layout, lang=lang)
+        page_analysis = parse_page(page_image, layout=layout, lang=lang,
+                                   cast_sheet=cast_sheet)
         page_json.write_text(page_analysis.model_dump_json(indent=2))
+        # Grow the book-level cast sheet so later pages reuse these labels
+        if cast_sheet is not None:
+            for _pa in page_analysis.panels_analysis:
+                for _ch in _pa.characters:
+                    if _ch.label and _ch.appearance and _ch.label not in cast_sheet:
+                        cast_sheet[_ch.label] = _ch.appearance
 
     # Phase 2 — script
     if script_json.exists():
@@ -266,6 +274,13 @@ def narrate_book(
     cast_map: dict[str, str] = (
         _json.loads(cast_map_path.read_text()) if cast_map_path.exists() else {}
     )
+    # Identity sheet (label → appearance): fed to Pass 2 so the model REUSES
+    # labels for recurring characters instead of inventing protagonist/
+    # black_haired_guy/hero_blue for one person (= the changing-voice bug).
+    cast_sheet_path = work_root / "cast_sheet.json"
+    cast_sheet: dict[str, str] = (
+        _json.loads(cast_sheet_path.read_text()) if cast_sheet_path.exists() else {}
+    )
 
     # Keyed by page NUMBER (not append order) so a failed page doesn't shift
     # every later page's index in the chapter-assembly step.
@@ -281,6 +296,7 @@ def narrate_book(
                 voice_bank_dir, narrator_voice_id, freesound_api_key,
                 vision_only=vision_only, lang=lang,
                 prior_voice_map=cast_map,
+                cast_sheet=cast_sheet,
             )
         except Exception as e:
             # One bad page must not kill a 200-page run — log and move on.
@@ -291,6 +307,7 @@ def narrate_book(
             )
             continue
         # Merge this page's resolved cast into the book map
+        cast_sheet_path.write_text(_json.dumps(cast_sheet, indent=2))
         cast_json = work_dir / "cast.json"
         if cast_json.exists():
             for m in _json.loads(cast_json.read_text()).get("members", []):

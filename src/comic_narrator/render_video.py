@@ -68,6 +68,11 @@ def render_video(
                         if char.is_speaking and char.is_visible and char.bbox:
                             speaker_bbox = (char.bbox.x, char.bbox.y, char.bbox.w, char.bbox.h)
                             break
+                    # Action panel with no speaker: halo the drawn SFX/impact
+                    # symbol instead ("something cracking should glow").
+                    if speaker_bbox is None and pa.sfx_bbox:
+                        b = pa.sfx_bbox
+                        speaker_bbox = (b.x, b.y, b.w, b.h)
                     break
 
             # Crop the panel from the page (fall back to the full page if the
