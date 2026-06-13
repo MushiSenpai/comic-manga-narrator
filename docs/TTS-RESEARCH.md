@@ -172,3 +172,29 @@ Operating model (per the user's VRAM-flush policy): run ONE model at a time,
 flush between. Track H flow = flush Nemotron (free ~22GB) → run Parler
 (Stage 1) + Seed-VC (Stage 2) in the isolated venv → keep the wav → reload
 whatever's next. Prototype: two-stage/prototype.py (A/B vs Fish Speech).
+
+
+---
+
+# Track H — VALIDATED end-to-end (2026-06-13)
+
+The two-stage pipeline runs, on GPU, in the isolated venv:
+- **Stage 1 (Parler):** acted the SL line "Stand up. I am not going to die
+  in a place like this. I will become stronger." in **1.9s** — and delivered
+  it in 4.3s of audio vs Fish Speech's 7.4s flat read (more energy/pace).
+- **Stage 2 (Seed-VC):** zero-shot re-voiced that take to male_young_bright,
+  **preserving the 4.3s emotional timing** while swapping the identity. The
+  emotion/identity decoupling works exactly as the theory predicts.
+
+Dependency cascade resolved (the "entry points lie, pin everything" lesson,
+live): parler-tts needs an explicit attention_mask; seed-vc needs `munch`
+and `torchcodec` beyond its requirements.txt. Pinned in two-stage/
+deps-resolved.txt.
+
+A/B for the ear (Documents): voice-AB-1-fish-current.wav,
+voice-AB-2-parler-acting.wav, voice-AB-3-twostage-final.wav.
+
+Operating model honored: flushed Nemotron (29.8GB free) → ran the two-stage
+models → left the card free for the waiting session. Next: judge the A/B
+quality; if good, wire TwoStageTTS as a real gateway worker in a dedicated
+container (the orchestration layer + COMIC_TWO_STAGE_TTS flag already exist).
