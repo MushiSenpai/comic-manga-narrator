@@ -147,3 +147,29 @@ def test_role_based_casting():
     # Supporting leads never get handed a background voice
     sup = cast_voice("supporting", "male", ["male","adult"], "human", None, "en", set())
     assert sup not in BACKGROUND_VOICES.values()
+
+
+def test_two_stage_delivery_brief():
+    from comic_narrator.audio.two_stage_tts import delivery_brief
+    # Tone + gender compose a Parler-style direction prompt
+    b = delivery_brief("shouting", "male")
+    assert "man" in b.lower() and "shout" in b.lower()
+    w = delivery_brief("whispering", "female")
+    assert "woman" in w.lower() and "whisper" in w.lower()
+    # Unknown tone falls back to a natural brief, never empty
+    assert delivery_brief("", "person")
+
+
+def test_two_stage_falls_back_to_fish(monkeypatch, tmp_path):
+    # When the expressive_tts worker is absent, TwoStageTTS must fall back to
+    # single-stage Fish Speech (never hard-fail on a missing model).
+    from comic_narrator.audio import two_stage_tts as mod
+    ts = mod.TwoStageTTS(enabled=True)
+    monkeypatch.setattr(ts, "_expressive_job", lambda *a, **k: False)
+    called = {}
+    def fake_fish(text, voice_id, output_path, **kw):
+        called["hit"] = True
+        return 1.23
+    monkeypatch.setattr(ts._fish, "synthesize", fake_fish)
+    dur = ts.synthesize("hi", "male_young_bright", tmp_path / "o.wav", tone="angry")
+    assert called.get("hit") and dur == 1.23

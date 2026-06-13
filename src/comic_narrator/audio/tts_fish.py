@@ -92,7 +92,16 @@ class FishSpeechTTS:
         if not job_id:
             raise RuntimeError(f"No job_id in response: {job}")
 
-        max_wait = 120  # seconds
+        result = self._poll(job_id)
+        output_file = result.get("output_file", "")
+        if not output_file or not Path(output_file).exists():
+            raise RuntimeError(f"Job finished but output missing: {result}")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(output_file, output_path)
+        return _wav_duration(output_path)
+
+    def _poll(self, job_id: str, max_wait: float = 120.0) -> dict:
+        """Poll an RQ job to completion. Returns the worker's result dict."""
         interval = 2.0
         elapsed = 0.0
         while elapsed < max_wait:
@@ -104,24 +113,14 @@ class FishSpeechTTS:
             status_r.raise_for_status()
             status = status_r.json()
             state = status.get("status", "")
-
             if state == "finished":
                 result = status.get("result") or {}
                 if result.get("error"):
                     raise RuntimeError(f"TTS worker error: {result['error']}")
-                output_file = result.get("output_file", "")
-                if not output_file or not Path(output_file).exists():
-                    raise RuntimeError(f"Job finished but output missing: {status}")
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(output_file, output_path)
-                return _wav_duration(output_path)
-
+                return result
             if state in ("failed", "stopped", "canceled", "not_found"):
                 raise RuntimeError(f"TTS job {state}: {status.get('error', 'unknown')}")
-
-            # Exponential backoff
             interval = min(interval * 1.5, 10.0)
-
         raise TimeoutError(f"TTS job {job_id} did not complete within {max_wait}s")
 
     def synthesize_batch(

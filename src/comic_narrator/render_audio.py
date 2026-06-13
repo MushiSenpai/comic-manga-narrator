@@ -116,8 +116,22 @@ def render_audio(
     wav_dir = output_dir / "wavs"
     wav_dir.mkdir(parents=True, exist_ok=True)
 
-    # TTS for dialogue + caption events
-    tts = FishSpeechTTS()
+    # TTS engine: two-stage expressive (Track H) when enabled + available,
+    # else single-stage Fish Speech. TwoStageTTS falls back per-line anyway.
+    from comic_narrator.config import TWO_STAGE_TTS
+    if TWO_STAGE_TTS:
+        from comic_narrator.audio.two_stage_tts import TwoStageTTS
+        tts = TwoStageTTS(enabled=True)
+    else:
+        tts = FishSpeechTTS()
+    two_stage = TWO_STAGE_TTS
+
+    # Per-character gender hint (for the Stage-1 delivery brief).
+    gender_by_voice = {
+        m.voice_id: next((a for a in m.voice_attributes if a in ("male", "female")), "person")
+        for m in getattr(getattr(script, "cast", None), "members", []) or []
+    }
+
     tts_events = [
         {
             "event_id": e.event_id,
@@ -135,13 +149,21 @@ def render_audio(
     event_files: list[dict] = []
     for ev in tts_events:
         out_wav = wav_dir / f"{ev['event_id']}.wav"
+        tone = ev.get("tone", "")
         speed, gain_db, temperature, top_p = TONE_DELIVERY.get(
-            ev.get("tone", ""), TONE_DELIVERY_DEFAULT)
-        emotion = TONE_EMOTION.get(ev.get("tone", ""), "")
+            tone, TONE_DELIVERY_DEFAULT)
+        emotion = TONE_EMOTION.get(tone, "")
         try:
-            tts.synthesize(normalize_tts_text(ev["text"]), ev["voice_id"], out_wav,
-                           speed=speed, emotion=emotion,
-                           temperature=temperature, top_p=top_p)
+            if two_stage:
+                tts.synthesize(
+                    normalize_tts_text(ev["text"]), ev["voice_id"], out_wav,
+                    speed=speed, emotion=emotion, tone=tone,
+                    gender=gender_by_voice.get(ev["voice_id"], "person"),
+                    temperature=temperature, top_p=top_p)
+            else:
+                tts.synthesize(normalize_tts_text(ev["text"]), ev["voice_id"], out_wav,
+                               speed=speed, emotion=emotion,
+                               temperature=temperature, top_p=top_p)
             event_files.append({**ev, "wav_path": out_wav, "gain_db": gain_db})
         except Exception as e:
             print(f"  [WARN] TTS failed for {ev['event_id']}: {e}")

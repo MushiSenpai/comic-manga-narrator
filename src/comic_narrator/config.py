@@ -18,6 +18,13 @@ VLLM_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
 AUDIO_GATEWAY_URL = "http://localhost:9000"
 FISH_SPEECH_CONCURRENCY = 4  # concurrent TTS jobs via audio gateway
 
+# Track H — two-stage expressive voice (Parler-TTS act → Seed-VC re-voice).
+# Off until the gateway 'expressive_tts' worker + models are installed; when
+# on, render_audio uses TwoStageTTS, which falls back to Fish Speech per-line
+# if the worker is absent. Flip via env COMIC_TWO_STAGE_TTS=1.
+import os as _os
+TWO_STAGE_TTS = _os.environ.get("COMIC_TWO_STAGE_TTS", "0") == "1"
+
 # Gateway-side voice profiles: the TTS worker resolves voice_profile names
 # against /data/ai/02-models/audio/voices/{name}.wav (audio stack convention).
 STACK_VOICE_DIR = Path("/data/ai/02-models/audio/voices")

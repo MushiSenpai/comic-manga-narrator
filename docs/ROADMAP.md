@@ -115,8 +115,8 @@ strip per "page", thousands of px tall, no panel grid.
 
 | # | Item | Status |
 |---|---|---|
-| H1 | Stage-1 expressive TTS (Parler-TTS, prompt-directed delivery from Nemotron emotion) | ⬜ |
-| H2 | Stage-2 voice conversion: **RVC v2 primary** (already installed); **Seed-VC v0.2 backup if RVC quality is insufficient** (user direction) — emotion preserved, identity swapped | ⬜ |
+| H1 | Stage-1 expressive TTS (Parler) + orchestration layer (two_stage_tts.py, gateway worker, config flag, Fish fallback) | ✅ code-complete; models install via scripts/install-expressive.sh |
+| H2 | Stage-2 voice conversion. NOTE: the RVC dir is EMPTY (spec'd, never installed) and RVC needs per-voice training; **Seed-VC v0.2 is zero-shot and uses our existing reference clips directly** → recommended primary. RVC remains the user-preferred option to evaluate. | ⬜ install pending GPU-free |
 | H3 | Per-character target VC model keyed by the cast sheet (G1) | ⬜ depends on G1 ✅ + H2 |
 
 ## Track D — Ops / scale
