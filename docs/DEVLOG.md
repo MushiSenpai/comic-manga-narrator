@@ -577,3 +577,23 @@ panels and eases gently; VP9 intermediates kept scratch in the tens of MB.
   the background voice, not the lead fallback. Logged ROADMAP G8.
 - One Pass-2 panel returned empty JSON and was stubbed (retry-once held the
   line) — model variance, non-blocking.
+
+### Session 12 — the two persistent bugs FIXED + Track H prep
+
+Measured sl-ep0-v5 (4 strips, 17 pages, 169s):
+- **Audio death FIXED:** v4 had sound 0-17s then dead to 154s (book concat
+  copied AAC → only page 1 audio). v5: every page 1-17 has narration, audio
+  present at 98s+ — `concat_videos(reencode_audio=True)` rebuilds one track.
+- **Zoom-into-bubble FIXED:** was OpenCV detecting speech bubbles as panels
+  (345x68, 308x75). v5: 21 panels, 0 bubble-sized. Detection rejects
+  slivers + whole-image fallback.
+- **Remaining (soundscape refinement, not the bugs):** action pages have
+  their visual_sfx playing (fire/slash/impact at -9dB) but as brief 2.5s
+  one-shots in ~6s panels with NO sustained ambient bed → action pages feel
+  sparse/quiet. The ambient cues (rain/wind/battle) are detected but not
+  sustaining under the panel. Logged as the active F-track soundscape item.
+
+### Track H prep — torch trap sidestepped
+Stable torch 2.12.0+cu130 runs on the RTX 5090 (verified GPU matmul), so the
+two-stage models live in an isolated venv (no nightly, no risk to the
+production container). Prototype ready; runs after flushing Nemotron.
