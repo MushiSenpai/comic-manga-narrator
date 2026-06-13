@@ -345,7 +345,11 @@ def narrate_book(
         if len(clips) == 1:
             shutil.copy(clips[0], chapter_out)
         else:
-            concat_videos(clips, chapter_out)
+            # reencode_audio is MANDATORY here: each page mp4 has its own AAC
+            # stream, and copying AAC across the concat demuxer plays only the
+            # FIRST page's audio then goes silent (verified: ep0 had sound for
+            # 17s then dead to 154s). Re-encoding rebuilds one continuous track.
+            concat_videos(clips, chapter_out, reencode_audio=True)
         # Chapter subtitles: merge page .srt timings with cumulative offsets
         from comic_narrator.subtitles import write_book_srt, video_duration
         timing_jsons = [work_root / f"page_{p:04d}" / "timing.json" for p in kept]

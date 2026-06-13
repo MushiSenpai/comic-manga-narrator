@@ -117,3 +117,23 @@ def test_prior_voice_map_keeps_character_voice():
     script, cast = build_script(analysis, prior_voice_map={"luffy": "ja_m_twenties_2e8835"})
     dia = [e for e in script.events if e.kind.value == "dialogue"][0]
     assert dia.voice_id == "ja_m_twenties_2e8835"
+
+
+def test_panel_detection_rejects_bubbles(tmp_path):
+    """A speech-bubble-sized region must NOT become a panel (the
+    'zoom into the speech bubble' defect on webtoon segments)."""
+    from PIL import Image, ImageDraw
+    from comic_narrator.vision.panels import detect_panels
+    # 850x1600 segment: one big panel + two tiny bubble rectangles
+    img = Image.new("RGB", (850, 1600), "white")
+    d = ImageDraw.Draw(img)
+    d.rectangle((20, 20, 830, 1100), outline="black", width=6)      # real panel
+    d.rectangle((62, 377, 407, 445), fill="white", outline="black", width=3)  # bubble 345x68
+    d.rectangle((275, 445, 583, 520), fill="white", outline="black", width=3)  # bubble 308x75
+    p = tmp_path / "seg.png"
+    img.save(p)
+    panels = detect_panels(p).panels
+    for pan in panels:
+        # No panel should be bubble-sized (tiny on both axes)
+        assert not (pan.bbox.w < 0.25 * 850 and pan.bbox.h < 0.25 * 1600), \
+            f"bubble leaked as panel: {pan.bbox}"

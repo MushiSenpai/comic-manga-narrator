@@ -11,7 +11,7 @@ from comic_narrator.schemas import BBox, Panel, PagePanels
 
 def detect_panels(
     image_path: Path,
-    min_area_frac: float = 0.01,
+    min_area_frac: float = 0.06,
     gutter_thresh: int = 10,
 ) -> PagePanels:
     """
@@ -52,7 +52,16 @@ def detect_panels(
         area = bw * bh
         if area < min_area:
             continue
-        # Expand slightly to capture edges
+        # Reject SPEECH BUBBLES / text boxes / borders masquerading as panels:
+        #  - tiny boxes (a real panel spans a meaningful fraction of a side)
+        #  - extreme slivers (wide-thin captions, thin frame borders)
+        # A bubble like 345x68 on an 850x1600 strip is 1.7% area, 5:1 wide —
+        # exactly what fragmented the webtoon segments into "zoom into bubble".
+        if bw < 0.25 * w and bh < 0.25 * h:
+            continue
+        ar = bw / max(bh, 1)
+        if ar > 4.0 or ar < 0.18:
+            continue
         margin = gutter_thresh // 2
         x = max(0, x - margin)
         y = max(0, y - margin)
@@ -60,9 +69,11 @@ def detect_panels(
         bh = min(h - y, bh + 2 * margin)
         panels.append(Panel(id=i + 1, bbox=BBox(x=x, y=y, w=bw, h=bh), order_index=0))
 
-    if not panels:
-        # Fallback: treat entire image as one panel
-        panels.append(Panel(id=1, bbox=BBox(x=0, y=0, w=w, h=h), order_index=0))
+    # If detection fragmented or covered little of the image, treat the whole
+    # image as ONE panel — the safe default for a sliced webtoon segment.
+    covered = sum(p.bbox.w * p.bbox.h for p in panels)
+    if not panels or covered < 0.5 * w * h:
+        panels = [Panel(id=1, bbox=BBox(x=0, y=0, w=w, h=h), order_index=0)]
 
     return PagePanels(layout="manga", panels=panels)
 
