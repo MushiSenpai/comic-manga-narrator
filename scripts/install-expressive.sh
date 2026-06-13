@@ -11,13 +11,35 @@ set -e
 WORKER=creative-audio-worker
 GW=http://localhost:9000
 
+# ⚠ TORCH CONFLICT (validated 2026-06-12, isolated-venv check):
+#   `pip install parler-tts` pulls torch 2.12.0 STABLE. The audio worker runs
+#   PyTorch NIGHTLY cu130 (required for RTX 5090 SM_120). A plain install
+#   DOWNGRADES torch and breaks Fish Speech + WhisperX in this container.
+#   → Install parler-tts and seed-vc deps with --no-deps and hand-pick the
+#     extra deps (transformers/sentencepiece/soundfile) WITHOUT torch, OR run
+#     the two-stage models in a SEPARATE container with their own torch. The
+#     commands below use --no-deps; verify `python -c "import torch; print(
+#     torch.__version__)"` still shows the nightly build AFTER running.
 echo "== Track H install: Parler-TTS + Seed-VC =="
+echo "   (preserving the worker's nightly torch — see header warning)"
 docker ps --format '{{.Names}}' | grep -qx "$WORKER" || {
   echo "Audio worker not running. Start with audio-mode.sh first." >&2; exit 1; }
 
-echo "[1/4] Parler-TTS (Stage 1, Apache-2.0)..."
+TORCH_BEFORE=$(docker exec "$WORKER" python3 -c "import torch;print(torch.__version__)" 2>/dev/null || echo none)
+echo "   worker torch before: $TORCH_BEFORE"
+
+echo "[1/4] Parler-TTS (Stage 1, Apache-2.0) — --no-deps to protect torch..."
+docker exec "$WORKER" pip install --no-cache-dir --break-system-packages --no-deps \
+  git+https://github.com/huggingface/parler-tts.git
 docker exec "$WORKER" pip install --no-cache-dir --break-system-packages \
-  git+https://github.com/huggingface/parler-tts.git soundfile
+  soundfile sentencepiece descript-audio-codec  # parler runtime deps, sans torch
+
+TORCH_AFTER=$(docker exec "$WORKER" python3 -c "import torch;print(torch.__version__)" 2>/dev/null || echo none)
+echo "   worker torch after: $TORCH_AFTER"
+[ "$TORCH_BEFORE" != "$TORCH_AFTER" ] && {
+  echo "❌ TORCH CHANGED ($TORCH_BEFORE → $TORCH_AFTER) — the stack is now broken." >&2
+  echo "   Reinstall nightly: pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu130" >&2
+  exit 1; }
 
 echo "[2/4] Seed-VC (Stage 2, zero-shot VC)..."
 # Seed-VC ships as a repo; clone into the worker workspace and expose a

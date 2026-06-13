@@ -131,3 +131,26 @@ for a newer cloner" as the strategic direction.
 
 Sources: arXiv 2103.16809 (TTS→emotional VC two-stage), arXiv 2211.04710
 (Expressive-VC prosody transfer), github.com/Plachtaa/seed-vc (Seed-VC v0.2).
+
+---
+
+# Track H install — validated path + the torch trap (2026-06-12)
+
+Isolated-venv validation before any container changes (the disciplined move):
+- ✅ `pip install parler-tts` resolves and imports cleanly (transformers 4.46.1).
+- ❌ **It pulls torch 2.12.0 STABLE.** The audio worker runs PyTorch *nightly
+  cu130* for the RTX 5090 (SM_120). A naive install downgrades torch and
+  breaks Fish Speech + WhisperX in that container — the exact "never
+  co-install / nightly wheels rot" hazard.
+
+**Mitigation (now in install-expressive.sh):** install parler-tts + seed-vc
+with `--no-deps`, hand-add only the non-torch runtime deps, and assert the
+worker's torch version is unchanged before/after (abort + reinstall-nightly
+instructions if it moved). Cleanest long-term: run the two-stage models in a
+**separate container** with their own torch, called over HTTP like
+creative-tts — isolates the dep graph entirely.
+
+This is why the install is a focused-session task, not an autonomous one:
+it's one careful step from breaking a working stack, and wants a human
+watching the torch version. The orchestration layer is done and falls back
+to Fish Speech, so the pipeline is unaffected until the install lands.
