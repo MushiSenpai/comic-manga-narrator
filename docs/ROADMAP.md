@@ -109,13 +109,14 @@ strip per "page", thousands of px tall, no panel grid.
 | G4 | Action panels with no speaker → halo the drawn SFX/impact symbol (`sfx_bbox`) | ✅ wired |
 | G5 | Zoom ONLY when a page has multiple sub-panels (whole page → push into the active box); single-panel pages stay wide | ⬜ needs sub-panel detection within a segment |
 | G6 | `shot_type` extraction drives camera (close/medium/wide) instead of geometry guessing | ⬜ TTS-RESEARCH extraction #1 |
+| G7 | Role-based casting: protagonist→fixed lead voice, leads→distinct pool, background/crowd→shared voice (prominent mains, no cast explosion) | ✅ cast_voice() by Nemotron `role` |
 
 ## Track H — Two-stage expressive voice (the "double run")
 
 | # | Item | Status |
 |---|---|---|
 | H1 | Stage-1 expressive TTS (Parler-TTS, prompt-directed delivery from Nemotron emotion) | ⬜ |
-| H2 | Stage-2 voice conversion to character timbre (RVC v2 already installed; eval Seed-VC v0.2) — emotion preserved, identity swapped | ⬜ |
+| H2 | Stage-2 voice conversion: **RVC v2 primary** (already installed); **Seed-VC v0.2 backup if RVC quality is insufficient** (user direction) — emotion preserved, identity swapped | ⬜ |
 | H3 | Per-character target VC model keyed by the cast sheet (G1) | ⬜ depends on G1 ✅ + H2 |
 
 ## Track D — Ops / scale

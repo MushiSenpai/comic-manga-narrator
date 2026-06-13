@@ -98,6 +98,22 @@ VOICE_MATCH_RULES = [
 DEFAULT_NARRATOR_VOICE = "_narrator"
 DEFAULT_FALLBACK_VOICE = "male_adult_gruff"
 
+# Role-based casting (user direction: leads get prominent distinct voices,
+# the recurring crew get their own, the faceless background must NOT consume
+# distinct voices). LEAD_VOICES are reserved for protagonist/main/supporting
+# speakers and assigned distinctly; BACKGROUND_VOICES are SHARED by all
+# one-off/crowd characters (hand_A, background_soldier, monster_A) so they
+# never dilute the lead pool. Also fixes the F8 cast explosion.
+LEAD_VOICES = [
+    "male_young_bright", "male_adult_gruff", "female_young_bright",
+    "female_young_soft", "monster_deep",
+]
+BACKGROUND_VOICES = {"male": "male_adult_warm", "female": "female_adult_warm",
+                     "neutral": "male_adult_warm"}
+# The protagonist gets a fixed, never-reused lead voice for maximum
+# consistency + prominence across the whole series.
+PROTAGONIST_VOICE = "male_young_bright"
+
 # Language-scoped casting: profiles named {lang}_* are preferred when the
 # page language isn't English; the narrator swaps to the language default.
 DEFAULT_NARRATOR_BY_LANG = {

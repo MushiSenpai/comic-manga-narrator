@@ -36,6 +36,7 @@ class Character(BaseModel):
     """A character detected in a panel."""
     label: str
     appearance: str = ""          # short visual description — the re-id key for the cast sheet
+    role: str = "supporting"      # protagonist | main | supporting | background — casting prominence
     expression: str = ""
     dominant_emotion: str = ""
     voice_attributes: list[str] = Field(default_factory=list)  # e.g. ["male","young","loud"]

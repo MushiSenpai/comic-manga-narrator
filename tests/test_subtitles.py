@@ -131,3 +131,19 @@ def test_en_cast_diversity_on_collision():
     got = match_voice(["male", "adult"], "human", bank,
                       lang="en", exclude={"male_adult_gruff"})
     assert got == "male_adult_warm"
+
+
+def test_role_based_casting():
+    from comic_narrator.build_script import cast_voice
+    from comic_narrator.config import PROTAGONIST_VOICE, BACKGROUND_VOICES
+    # Protagonist gets the fixed lead voice
+    assert cast_voice("protagonist", "male", ["male","young"], "human", None, "en", set()) == PROTAGONIST_VOICE
+    # Background characters SHARE a generic voice (don't consume distinct slots)
+    bg1 = cast_voice("background", "male", ["male"], "human", None, "en", {"x"})
+    bg2 = cast_voice("background", "male", ["male"], "human", None, "en", {"y","z"})
+    assert bg1 == bg2 == BACKGROUND_VOICES["male"]
+    # A background female shares the female background voice, not a male one
+    assert cast_voice("background", "female", ["female"], "human", None, "en", set()) == BACKGROUND_VOICES["female"]
+    # Supporting leads never get handed a background voice
+    sup = cast_voice("supporting", "male", ["male","adult"], "human", None, "en", set())
+    assert sup not in BACKGROUND_VOICES.values()

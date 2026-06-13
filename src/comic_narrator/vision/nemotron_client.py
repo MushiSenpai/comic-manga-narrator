@@ -103,6 +103,7 @@ Output valid JSON with these rules:
 - "characters" (array): every visible character. For each:
   - "label": a short unique label. IF A "KNOWN CAST" LIST IS PROVIDED in the request, compare each character against it by appearance and REUSE the existing label for the same person — never invent a second label for someone already in the cast. Only new characters get new labels.
   - "appearance": a short distinctive visual description for re-identification across panels (hair color/style, clothing, build — e.g. "black spiky hair, grey hoodie, slim young man")
+  - "role": one of "protagonist" (the clear lead the story follows), "main" (a recurring named character), "supporting" (a named but secondary character), or "background" (a faceless/one-off crowd or extra figure - soldiers, bystanders, generic monsters). Judge from prominence: centered/detailed/recurring = lead; small/faceless/incidental = background.
   - "expression": what their face shows ("angry", "smiling", "shocked", ...)
   - "dominant_emotion": the primary emotion ("rage", "joy", "fear", "surprise", "sadness", "neutral")
   - "voice_attributes": [gender, age, pitch, timbre_tags...] e.g. ["male","young","loud","bright"]
@@ -323,6 +324,7 @@ class NemotronClient:
             characters.append(Character(
                 label=c.get("label", ""),
                 appearance=str(c.get("appearance", ""))[:160],
+                role=str(c.get("role", "supporting")).lower(),
                 expression=c.get("expression", ""),
                 dominant_emotion=c.get("dominant_emotion", ""),
                 voice_attributes=c.get("voice_attributes", []),

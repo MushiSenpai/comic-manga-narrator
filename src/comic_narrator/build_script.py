@@ -14,7 +14,36 @@ from comic_narrator.config import (
     DEFAULT_NARRATOR_VOICE,
     DEFAULT_FALLBACK_VOICE,
     DEFAULT_NARRATOR_BY_LANG,
+    LEAD_VOICES,
+    BACKGROUND_VOICES,
+    PROTAGONIST_VOICE,
 )
+
+
+def cast_voice(role, gender, attrs, voice_type, voice_bank, lang, used):
+    """Assign a voice by character role (user direction).
+
+    - protagonist → a fixed, never-reused lead voice (max consistency + prominence)
+    - background  → a SHARED generic voice by gender (crowd/extras don't burn
+                    distinct voices; also caps the cast explosion)
+    - main/supporting → a distinct lead voice via attribute matching, excluding
+                    already-used and background voices so leads stay distinct
+    """
+    role = (role or "supporting").lower()
+    if role == "protagonist" and PROTAGONIST_VOICE not in used:
+        return PROTAGONIST_VOICE
+    if role == "background":
+        return BACKGROUND_VOICES.get(gender, BACKGROUND_VOICES["neutral"])
+    # Lead/supporting: keep distinct, never hand them a background voice.
+    bg = set(BACKGROUND_VOICES.values())
+    chosen = match_voice(attrs, voice_type, voice_bank, lang=lang,
+                         exclude=used | bg)
+    # Prefer the reserved lead pool when the match landed outside it.
+    if chosen in bg or chosen in used:
+        for v in LEAD_VOICES:
+            if v not in used:
+                return v
+    return chosen
 from comic_narrator.schemas import (
     Cast,
     CastMember,
@@ -140,19 +169,23 @@ def build_script(
             event_counter += 1
             speaker = dialogue.speaker
 
-            # Resolve voice
+            # Resolve voice (role-aware casting)
             if speaker not in char_map:
-                # Find character attributes from panel.characters
                 attrs: list[str] = []
                 voice_type = "human"
+                role = "supporting"
+                gender = "neutral"
                 for char in panel.characters:
                     if char.label == speaker:
                         attrs = char.voice_attributes
                         voice_type = char.voice_type
+                        role = (char.role or "supporting").lower()
+                        gender = next((a for a in (char.voice_attributes or [])
+                                       if a in ("male", "female")), "neutral")
                         break
-                char_map[speaker] = match_voice(
-                    attrs, voice_type, voice_bank, lang=lang,
-                    exclude=set(char_map.values()) | {narrator_voice_id},
+                char_map[speaker] = cast_voice(
+                    role, gender, attrs, voice_type, voice_bank, lang,
+                    used=set(char_map.values()) | {narrator_voice_id},
                 )
 
             voice_id = char_map[speaker]
