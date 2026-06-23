@@ -1,0 +1,40 @@
+<svg viewBox="0 0 540 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ct cd">
+<title id="ct">Comic narrator pipeline</title>
+<desc id="cd">A comic page flows top to bottom through four phases — vision, script, audio, video — to a narrated mp4.</desc>
+<rect x="0" y="0" width="540" height="520" rx="14" fill="#0b0e14"/>
+<defs><marker id="g" markerWidth="10" markerHeight="10" refX="5" refY="7" orient="auto"><path d="M1,1 L5,7 L9,1" fill="none" stroke="#e8a33d" stroke-width="1.6"/></marker></defs>
+<g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <text x="24" y="36" font-size="15" font-weight="500" fill="#e6e1d7">comic narrator — a page becomes a <tspan fill="#e8a33d">narrated video</tspan></text>
+  <rect x="170" y="52" width="200" height="32" rx="16" fill="#1e2430" stroke="#5b6270"/>
+  <text x="270" y="72" font-size="12" fill="#8a8f98" text-anchor="middle">page.jpg / book.pdf</text>
+  <g stroke="#e8a33d" stroke-width="1.6" marker-end="url(#g)" fill="none">
+    <path d="M270,84 L270,103"/><path d="M270,164 L270,187"/><path d="M270,248 L270,271"/><path d="M270,332 L270,355"/><path d="M270,416 L270,439"/>
+  </g>
+  <g>
+    <rect x="120" y="104" width="300" height="60" rx="10" fill="#11151f" stroke="#3a4252"/>
+    <text x="138" y="126" font-size="13"><tspan fill="#e8a33d" font-weight="500">phase 1 ·</tspan><tspan fill="#e6e1d7" font-weight="500"> vision</tspan></text>
+    <text x="138" y="143" font-size="11" fill="#8a8f98">nemotron-3-nano-omni · <tspan fill="#e8a33d">vllm :8000</tspan></text>
+    <text x="138" y="156" font-size="10" fill="#5b6270">panel detection — opencv gutters + llm refine</text>
+    <rect x="120" y="188" width="300" height="60" rx="10" fill="#11151f" stroke="#3a4252"/>
+    <text x="138" y="210" font-size="13"><tspan fill="#e8a33d" font-weight="500">phase 2 ·</tspan><tspan fill="#e6e1d7" font-weight="500"> script</tspan></text>
+    <text x="138" y="227" font-size="11" fill="#8a8f98">events + auto-pick voices</text>
+    <text x="138" y="240" font-size="10" fill="#5b6270">builds the cast and beat sheet</text>
+    <rect x="120" y="272" width="300" height="60" rx="10" fill="#11151f" stroke="#3a4252"/>
+    <text x="138" y="294" font-size="13"><tspan fill="#e8a33d" font-weight="500">phase 3 ·</tspan><tspan fill="#e6e1d7" font-weight="500"> audio</tspan></text>
+    <text x="138" y="311" font-size="11" fill="#8a8f98">fish speech 1.5 · <tspan fill="#e8a33d">gateway :9000</tspan></text>
+    <text x="138" y="324" font-size="10" fill="#5b6270">cloned voices + narrator + freesound sfx</text>
+    <rect x="120" y="356" width="300" height="60" rx="10" fill="#11151f" stroke="#3a4252"/>
+    <text x="138" y="378" font-size="13"><tspan fill="#e8a33d" font-weight="500">phase 4 ·</tspan><tspan fill="#e6e1d7" font-weight="500"> video</tspan></text>
+    <text x="138" y="395" font-size="11" fill="#8a8f98">ffmpeg · ken burns + 2.5d parallax</text>
+    <text x="138" y="408" font-size="10" fill="#5b6270">per-panel camera + audio mux</text>
+  </g>
+  <g font-size="10" fill="#8a8f98">
+    <text x="282" y="179">→ page.json</text>
+    <text x="282" y="263">→ script.json · cast.json</text>
+    <text x="282" y="347">→ narration.wav · timing.json</text>
+  </g>
+  <rect x="160" y="440" width="220" height="34" rx="17" fill="#1e2430" stroke="#e8a33d"/>
+  <text x="270" y="462" font-size="12" font-weight="500" fill="#e6e1d7" text-anchor="middle">output.mp4 — narrated video</text>
+  <text x="24" y="502" font-size="11" fill="#8a8f98">one gpu mode — agent-mode (light nemotron, ~25.7gb) and fish speech coexist; no mode switch.</text>
+</g>
+</svg>

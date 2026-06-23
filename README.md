@@ -6,6 +6,8 @@ A page image goes in; out comes a video where a camera drifts across each panel 
 
 ## Pipeline
 
+<p align="center"><img src="docs/pipeline.svg" alt="Comic narrator pipeline: a page flows through four phases — vision (Nemotron), script, audio (Fish Speech), video (ffmpeg) — to a narrated mp4" width="540"></p>
+
 ```
 page.jpg
    │
