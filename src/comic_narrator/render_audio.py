@@ -118,13 +118,20 @@ def render_audio(
 
     # TTS engine: two-stage expressive (Track H) when enabled + available,
     # else single-stage Fish Speech. TwoStageTTS falls back per-line anyway.
-    from comic_narrator.config import TWO_STAGE_TTS
-    if TWO_STAGE_TTS:
+    from comic_narrator.config import TTS_ENGINE, TWO_STAGE_TTS
+    engine = TTS_ENGINE if TTS_ENGINE in ("fish", "indextts2", "two_stage") else "fish"
+    if TWO_STAGE_TTS and engine == "fish":
+        engine = "two_stage"  # back-compat with the older flag
+    if engine == "indextts2":
+        from comic_narrator.audio.indextts2_tts import IndexTTS2TTS
+        tts = IndexTTS2TTS()
+    elif engine == "two_stage":
         from comic_narrator.audio.two_stage_tts import TwoStageTTS
         tts = TwoStageTTS(enabled=True)
     else:
         tts = FishSpeechTTS()
-    two_stage = TWO_STAGE_TTS
+    # Engines other than plain Fish accept tone/gender kwargs (expressive).
+    expressive = engine in ("indextts2", "two_stage")
 
     # Per-character gender hint (for the Stage-1 delivery brief).
     gender_by_voice = {
@@ -154,7 +161,7 @@ def render_audio(
             tone, TONE_DELIVERY_DEFAULT)
         emotion = TONE_EMOTION.get(tone, "")
         try:
-            if two_stage:
+            if expressive:
                 tts.synthesize(
                     normalize_tts_text(ev["text"]), ev["voice_id"], out_wav,
                     speed=speed, emotion=emotion, tone=tone,

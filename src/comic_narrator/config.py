@@ -24,6 +24,10 @@ FISH_SPEECH_CONCURRENCY = 4  # concurrent TTS jobs via audio gateway
 # if the worker is absent. Flip via env COMIC_TWO_STAGE_TTS=1.
 import os as _os
 TWO_STAGE_TTS = _os.environ.get("COMIC_TWO_STAGE_TTS", "0") == "1"
+# COMIC_TTS_ENGINE: "fish" (default) | "indextts2" (expressive, researched
+# winner — docs/TTS-DECISION.md) | "two_stage" (legacy Parler+Seed-VC).
+# All non-fish engines fall back to Fish per-line if their server is down.
+TTS_ENGINE = _os.environ.get("COMIC_TTS_ENGINE", "fish").lower()
 
 # Gateway-side voice profiles: the TTS worker resolves voice_profile names
 # against /data/ai/02-models/audio/voices/{name}.wav (audio stack convention).
